@@ -1,5 +1,5 @@
 import time
-import _archive
+import _libarchive
 from zipfile import ZIP_STORED, ZIP_DEFLATED
 
 # Suggested block size for libarchive. It may adjust it.
@@ -7,14 +7,14 @@ BLOCK_SIZE = 10240
 
 # Functions to initialize read/write for various libarchive supported formats and filters.
 FORMATS = {
-    None:       (_archive.archive_read_support_format_all, None),
-    'tar':      (_archive.archive_read_support_format_tar, _archive.archive_write_set_format_gnutar),
-    'zip':      (_archive.archive_read_support_format_zip, _archive.archive_write_set_format_zip),
-    'rar':      (_archive.archive_read_support_format_rar, None),
+    None:       (_libarchive.archive_read_support_format_all, None),
+    'tar':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_gnutar),
+    'zip':      (_libarchive.archive_read_support_format_zip, _libarchive.archive_write_set_format_zip),
+    'rar':      (_libarchive.archive_read_support_format_rar, None),
 }
 
 FILTERS = {
-    None:       (_archive.archive_read_support_filter_all, _archive.archive_write_add_filter_none),
+    None:       (_libarchive.archive_read_support_filter_all, _libarchive.archive_write_add_filter_none),
 }
 
 
@@ -26,57 +26,57 @@ class ArchiveEOF(Exception):
 
 class ArchiveInfo(object):
     def __init__(self, archive):
-        self._archive = archive
-        self._e = _archive.archive_entry_new()
+        self._libarchive = archive
+        self._e = _libarchive.archive_entry_new()
         tries = 0
         while True:
             tries += 1
-            ret = _archive.archive_read_next_header2(self._archive._a, self._e)
-            if ret == _archive.ARCHIVE_OK:
+            ret = _libarchive.archive_read_next_header2(self._libarchive._a, self._e)
+            if ret == _libarchive.ARCHIVE_OK:
                 break
-            elif ret == _archive.ARCHIVE_EOF:
+            elif ret == _libarchive.ARCHIVE_EOF:
                 raise ArchiveEOF()
-            elif ret in (_archive.ARCHIVE_FAILED, _archive.ARCHIVE_FATAL):
+            elif ret in (_libarchive.ARCHIVE_FAILED, _libarchive.ARCHIVE_FATAL):
                 raise Exception('Error %s reading archive entries.' % ret)
-            elif ret == _archive.ARCHIVE_RETRY:
+            elif ret == _libarchive.ARCHIVE_RETRY:
                 if tries > 3:
                     raise Exception('Error reading archive entries. Failed after %s tries.' % tries)
                 continue
 
     def __del__(self):
-        _archive.archive_entry_free(self._e)
+        _libarchive.archive_entry_free(self._e)
 
     def _get_pathname(self):
-        return _archive.archive_entry_pathname(self._e)
+        return _libarchive.archive_entry_pathname(self._e)
 
     def _set_pathname(self, pathname):
         assert isinstance(pathname, basestring), 'Please provide pathname as string.'
-        assert self._archive.mode != 'r', 'Cannot set pathname in read mode.'
-        r = _archive.archive_entry_set_pathname(self._e, pathname)
+        assert self._libarchive.mode != 'r', 'Cannot set pathname in read mode.'
+        r = _libarchive.archive_entry_set_pathname(self._e, pathname)
 
     pathname = property(_get_pathname, _set_pathname)
 
     def _get_size(self):
-        return _archive.archive_entry_size(self._e)
+        return _libarchive.archive_entry_size(self._e)
 
     def _set_size(self, size):
         assert isinstance(size, (int, long)), 'Please provide size as int or long.'
-        assert self._archive.mode != 'r', 'Cannot set size in read mode.'
-        r = _archive.archive_entry_set_size(self._e, size)
+        assert self._libarchive.mode != 'r', 'Cannot set size in read mode.'
+        r = _libarchive.archive_entry_set_size(self._e, size)
 
     size = property(_get_size, _set_size)
 
     def _get_mtime(self):
-        date_time = _archive.archive_entry_mtime(self._e)
+        date_time = _libarchive.archive_entry_mtime(self._e)
         date_time = time.localtime(date_time)
         return date_time[0:6]
 
     def _set_mtime(self, mtime):
         assert isinstance(mtime, tuple), 'mtime should be tuple (year, month, day, hour, minute, second).'
         assert len(mtime) == 6, 'mtime should be tuple (year, month, day, hour, minute, second).'
-        assert self._archive.mode != 'r', 'Cannot set mtime in read mode.'
+        assert self._libarchive.mode != 'r', 'Cannot set mtime in read mode.'
         mtime = time.mktime(mtime + (0, 0, 0))
-        _archive.archive_entry_set_mtime(self._e, mtime)
+        _libarchive.archive_entry_set_mtime(self._e, mtime)
 
     mtime = property(_get_mtime, _set_mtime)
 
@@ -94,7 +94,7 @@ class ArchiveFile(object):
                 raise Exception('Unsupported format %s' % format)
             if filters is None:
                 raise Exception('Unsupported filter %s' % filter)
-            self._a = _archive.archive_read_new()
+            self._a = _libarchive.archive_read_new()
             formats[0](self._a)
             filters[0](self._a)
         else:
@@ -105,26 +105,26 @@ class ArchiveFile(object):
                 raise Exception('Unsupported filter %s' % filter)
             if formats[1] is None:
                 raise Exception('Cannot write specified format.')
-            self._a = _archive.archive_write_new()
+            self._a = _libarchive.archive_write_new()
             formats[1](self._a)
             filters[1](self._a)
         if isinstance(file, basestring):
             self._filePassed = 0
             self.filename = file
             if self.mode == 'r':
-                ret = _archive.archive_read_open_filename(self._a, file, BLOCK_SIZE)
+                ret = _libarchive.archive_read_open_filename(self._a, file, BLOCK_SIZE)
             else:
-                ret = _archive.archive_write_open_filename(self._a, file)
-            if ret not in (_archive.ARCHIVE_WARN, _archive.ARCHIVE_OK):
+                ret = _libarchive.archive_write_open_filename(self._a, file)
+            if ret not in (_libarchive.ARCHIVE_WARN, _libarchive.ARCHIVE_OK):
                 raise Exception('Error %s opening archive.' % ret)
         elif hasattr(file, 'fileno'):
             self._filePassed = 1
             self.filename = getattr(file, 'name', None)
             if self.mode == 'r':
-                ret = _archive.archive_read_open_fd(self._a, file.fileno(), BLOCK_SIZE)
+                ret = _libarchive.archive_read_open_fd(self._a, file.fileno(), BLOCK_SIZE)
             else:
-                ret = _archive.archive_write_open_fd(self._a, file.fileno())
-            if ret not in (_archive.ARCHIVE_WARN, _archive.ARCHIVE_OK):
+                ret = _libarchive.archive_write_open_fd(self._a, file.fileno())
+            if ret not in (_libarchive.ARCHIVE_WARN, _libarchive.ARCHIVE_OK):
                 raise Exception('Error %s opening archive.' % ret)
         else:
             raise Exception('Provided file is not path or open file.')
@@ -140,11 +140,11 @@ class ArchiveFile(object):
 
     def close(self):
         if self.mode == 'r':
-            _archive.archive_read_close(self._a)
-            _archive.archive_read_free(self._a)
+            _libarchive.archive_read_close(self._a)
+            _libarchive.archive_read_free(self._a)
         else:
-            _archive.archive_write_close(self._a)
-            _archive.archive_write_free(self._a)
+            _libarchive.archive_write_close(self._a)
+            _libarchive.archive_write_free(self._a)
 
     def getinfo(self, name):
         for info in self.infolist():
@@ -261,17 +261,17 @@ class TarFile(ArchiveFile):
 
 def test():
     import pdb; pdb.set_trace()
-    #~ a = _archive.archive_read_new()
-    #~ _archive.archive_read_support_filter_all(a)
-    #~ _archive.archive_read_support_format_all(a)
-    #~ _archive.archive_read_open_filename(a, "tests/test.tar.gz", 10240)
-    #~ e = _archive.archive_entry_new()
+    #~ a = _libarchive.archive_read_new()
+    #~ _libarchive.archive_read_support_filter_all(a)
+    #~ _libarchive.archive_read_support_format_all(a)
+    #~ _libarchive.archive_read_open_filename(a, "tests/test.tar.gz", 10240)
+    #~ e = _libarchive.archive_entry_new()
     #~ while True:
-        #~ ret = _archive.archive_read_next_header2(a, e)
+        #~ ret = _libarchive.archive_read_next_header2(a, e)
         #~ if ret != 0:
             #~ break
-        #~ print _archive.archive_entry_pathname(e)
-    #~ _archive.archive_read_free(a)
+        #~ print _libarchive.archive_entry_pathname(e)
+    #~ _libarchive.archive_read_free(a)
 
     z = ZipFile('tests/test.zip')
     print [e.file_name for e in z.infolist()]
