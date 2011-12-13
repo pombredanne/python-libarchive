@@ -1,5 +1,5 @@
 import time
-import _libarchive
+from libarchive import _libarchive
 from zipfile import ZIP_STORED, ZIP_DEFLATED
 
 # Suggested block size for libarchive. It may adjust it.
