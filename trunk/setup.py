@@ -8,7 +8,7 @@ except ImportError:
     from distutils.core import setup, Extension
     from distutils.command import build_ext
 
-_libarchive = Extension(name='libarchive.__libarchive',
+__libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive.i'],
                         extra_compile_args=['-Ilibarchive'],
                         extra_link_args=['-l:libarchive.so.11.0.1'],
@@ -36,5 +36,6 @@ zipfile and tarfile modules.''',
           'Topic :: Data :: Compression',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
-      ext_modules = [_libarchive],
+      py_modules = ['libarchive._libarchive'],
+      ext_modules = [__libarchive],
       )
