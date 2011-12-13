@@ -1,4 +1,4 @@
-%module _archive
+%module _libarchive
 
 %{
 #include <archive.h>
