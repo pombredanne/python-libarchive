@@ -10,12 +10,12 @@ PYINCLUDE = -DHAVE_CONFIG_H -I/usr/include/python$(PYVER) \
             -I/usr/include/python$(PYVER)
 PYLIB     = /usr/include/python$(PYVER)
 
-all: _archive
+all: _libarchive
 
-_archive: _archive.i
-	swig -python -shadow _archive.i
-	cc -c -fpic $(CFLAGS) $(INCLUDE) $(PYINCLUDE) _archive_wrap.c
-	ld -Bshareable -o __archive.so _archive_wrap.o $(LIBS) 
+_libarchive: _libarchive.i
+	swig -python -shadow _libarchive.i
+	cc -c -fpic $(CFLAGS) $(INCLUDE) $(PYINCLUDE) _libarchive_wrap.c
+	ld -Bshareable -o __libarchive.so _libarchive_wrap.o $(LIBS) 
 
 clean:
-	rm -f *_wrap* *.o *.so _archive.py *.pyc
+	rm -f *_wrap* *.o *.so _libarchive.py *.pyc
