@@ -4,15 +4,27 @@ import os, sys
 try:
     from setuptools import setup, Extension
     from setuptools.command import build_ext
+    from setuptools.command.build import build
 except ImportError:
     from distutils.core import setup, Extension
     from distutils.command import build_ext
+    from distutils.command.build import build
+
+# http://sourceforge.net/mailarchive/message.php?msg_id=28474701
+# hack distutils so that extensions are built before python modules;
+# this is necessary for SWIG-generated .py files
+build.sub_commands = [('build_ext', build.has_ext_modules),
+                     ('build_py', build.has_pure_modules),
+                     ('build_clib', build.has_c_libraries),
+                     ('build_scripts', build.has_scripts)]
+
 
 __libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive.i'],
                         extra_compile_args=['-Ilibarchive'],
                         extra_link_args=['-l:libarchive.so.11.0.1'],
                         )
+
 
 setup(name = 'python-libarchive',
       version = '0.1',
@@ -36,6 +48,5 @@ zipfile and tarfile modules.''',
           'Topic :: Data :: Compression',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
-      py_modules = ['libarchive._libarchive'],
       ext_modules = [__libarchive],
       )
