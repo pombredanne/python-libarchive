@@ -250,13 +250,19 @@ extern void			 archive_entry_free(struct archive_entry *);
 /* ARCHIVE ENTRY PROPERTY ACCESS */
 /* reading */
 extern const char	*archive_entry_pathname(struct archive_entry *);
+extern const wchar_t	*archive_entry_pathname_w(struct archive_entry *);
 extern __LA_INT64_T	 archive_entry_size(struct archive_entry *);
-extern time_t	 archive_entry_mtime(struct archive_entry *);
+extern time_t            archive_entry_mtime(struct archive_entry *);
 
 /* writing */
 extern void	archive_entry_set_pathname(struct archive_entry *, const char *);
 extern void	archive_entry_set_size(struct archive_entry *, __LA_INT64_T);
 extern void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
+
+
+/* ERROR HANDLING */
+extern int		 archive_errno(struct archive *);
+extern const char	*archive_error_string(struct archive *);
 
 
 /* CONSTANTS */
