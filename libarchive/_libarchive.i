@@ -7,6 +7,44 @@
 
 %include "typemaps.i"
 
+%typemap(in) time_t
+{
+    if (PyLong_Check($input))
+        $1 = (time_t) PyLong_AsLong($input);
+    else if (PyInt_Check($input))
+        $1 = (time_t) PyInt_AsLong($input);
+    else if (PyFloat_Check($input))
+        $1 = (time_t) PyFloat_AsDouble($input);
+    else {
+        PyErr_SetString(PyExc_TypeError,"Expected a large number");
+        return NULL;
+    }
+}
+
+%typemap(out) time_t
+{
+    $result = PyLong_FromLong((long)$1);
+}
+
+%typemap(in) int64_t
+{
+    if (PyLong_Check($input))
+        $1 = (int64_t) PyLong_AsLong($input);
+    else if (PyInt_Check($input))
+        $1 = (int64_t) PyInt_AsLong($input);
+    else if (PyFloat_Check($input))
+        $1 = (int64_t) PyFloat_AsDouble($input);
+    else {
+        PyErr_SetString(PyExc_TypeError,"Expected a large number");
+        return NULL;
+    }
+}
+
+%typemap(out) int64_t
+{
+    $result = PyLong_FromLong((long)$1);
+}
+
 # Everything below is from the archive.h and archive_entry.h files.
 # I excluded functions declarations that are not needed.
 
@@ -98,10 +136,13 @@ extern int archive_read_open_fd(struct archive *, int _fd,
 
 /* closing */
 extern int		 archive_read_close(struct archive *);
+extern int		 archive_format(struct archive *);
 
 /* headers */
-int archive_read_next_header2(struct archive *,
+extern int archive_read_next_header2(struct archive *,
 		     struct archive_entry *);
+extern const struct stat	*archive_entry_stat(struct archive_entry *);
+extern __LA_INT64_T		 archive_read_header_position(struct archive *);
 
 /* data */
 extern __LA_SSIZE_T		 archive_read_data(struct archive *,
@@ -139,6 +180,7 @@ extern int archive_read_support_format_raw(struct archive *);
 extern int archive_read_support_format_tar(struct archive *);
 extern int archive_read_support_format_xar(struct archive *);
 extern int archive_read_support_format_zip(struct archive *);
+/*extern int archive_read_support_format_by_code(struct archive *, int);*/
 
 /* ARCHIVE WRITING */
 extern struct archive	*archive_write_new(void);
@@ -283,3 +325,18 @@ extern void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
 #define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER	(0x0800)
 #define	ARCHIVE_EXTRACT_SPARSE			(0x1000)
 #define	ARCHIVE_EXTRACT_MAC_METADATA		(0x2000)
+
+%inline %{
+PyObject *archive_read_data_into_str(struct archive *archive, int len) {
+    PyObject *str = NULL;
+    if(!(str = PyString_FromStringAndSize(NULL, len))) {
+        PyErr_SetString(PyExc_MemoryError, 'could not allocate string.');
+        return NULL;
+    }
+    if(len != archive_read_data(archive, PyString_AS_STRING(str), len)) {
+        PyErr_SetString(PyExc_RuntimeError, 'could not read requested data.');
+        return NULL;
+    }
+    return str;
+}
+%}
