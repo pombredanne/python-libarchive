@@ -358,3 +358,110 @@ class SeekableArchive(object):
 
     def close(self):
         self.archive.close()
+
+
+class TreeNode(object):
+    def __init__(self, name, entry=None):
+        self.name = name
+        self.entry = entry
+        self._size = 0
+        self.children = {}
+
+    def get_size(self):
+        if self.entry:
+            return self.entry.size
+        return self._size
+
+    def set_size(self, value):
+        if self.entry:
+            return
+        self._size = value
+
+    size = property(get_size, set_size)
+
+    @property
+    def isdir(self):
+        # If there is no entry, we are a phantom node, created just to
+        # contain children (which makes us a directory).
+        if self.entry is None:
+            return True
+        # Otherwise, inspect our entry.
+        return stat.S_ISDIR(self.entry.mode)
+
+
+class TreeArchive(SeekableArchive):
+    '''A subclass of SeekableArchive which presents an archive's contents as a tree structure.
+    It emulates the os module's cwd, listdir and walk functions to act like a file system.'''
+    def __init__(self, *args, **kwargs):
+        super(TreeArchive, self).__init__(*args, **kwargs)
+        self.root = TreeNode('/')
+        self.tree_complete = False
+
+    def build_tree(self):
+        # Don't rebuild the tree.
+        if self.tree_complete:
+            return
+        # Populate the tree with nodes.
+        for entry in self:
+            node = self.root
+            path_parts = entry.pathname.split('/')
+            for i, part in enumerate(path_parts):
+                # Get or create the node.
+                if part in node.children:
+                    curr = node.children.get(part)
+                else:
+                    curr = node.children[part] = TreeNode(part)
+                # If this path part is a leaf, attach the entry. Otherwise
+                # the node is a phantom node that exists just to hold others.
+                if i == len(path_parts) - 1:
+                    curr.entry = entry
+        # Avoid rebuilding the tree after this point, we can now use self.get()
+        # safely: self.walk() uses self.get()..
+        self.tree_complete = True
+        # Calculate size of each node (combined size of it's children).
+        dsizes = {}
+        for root, dirs, files in self.walk('/', topdown=False):
+            dsize = 0
+            for name in files + dirs:
+                node = self.get(os.path.join(root, name))
+                dsize += node.size
+            node = self.get(root)
+            if node.isdir:
+                node.size = dsize
+
+    def get(self, path):
+        self.build_tree()
+        node = self.root
+        if path != '/':
+            path_parts = path.split('/')
+            del path_parts[0]
+            for part in path_parts:
+                node = node.children.get(part, None)
+                if node is None:
+                    raise KeyError(part)
+        return node
+
+    def listdir(self, path):
+        node = self.get(path)
+        return node.children.keys()
+
+    def isdir(self, path):
+        node = self.get(path)
+        return node.isdir
+
+    def walk(self, path, topdown=True):
+        names = self.listdir(path)
+        dirs, nondirs = [], []
+        for name in names:
+            if self.isdir(os.path.join(path, name)):
+                dirs.append(name)
+            else:
+                nondirs.append(name)
+        if topdown:
+            yield path, dirs, nondirs
+        for name in dirs:
+            new_path = os.path.join(path, name)
+            for x in self.walk(new_path, topdown):
+                yield x
+        if not topdown:
+            yield path, dirs, nondirs
