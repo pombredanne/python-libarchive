@@ -25,17 +25,45 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os, sys
 try:
     from setuptools import setup, Extension
-    from setuptools.command import build_ext
     from setuptools.command.build import build
+    from setuptools.command.build_ext import build_ext
     from setuptools.command.install_lib import install_lib
 except ImportError:
     from distutils.core import setup, Extension
-    from distutils.command import build_ext
     from distutils.command.build import build
+    from distutils.command.build_ext import build_ext
     from distutils.command.install_lib import install_lib
+
+
+class build_ext_extra(build_ext, object):
+    """
+    Extend build_ext allowing extra_compile_args and extra_link_args to be set
+    on the command-line.
+    """
+    user_options = build_ext.user_options
+    user_options.append(
+        ('extra-compile-args=', None,
+         'Extra arguments passed directly to the compiler')
+        )
+    user_options.append(
+        ('extra-link-args=', None,
+         'Extra arguments passed directly to the linker')
+        )
+
+    def initialize_options(self):
+        build_ext.initialize_options(self)
+        self.extra_compile_args = None        
+        self.extra_link_args = None        
+
+    def build_extension(self, ext):
+        if self.extra_compile_args:
+            ext.extra_compile_args.append(self.extra_compile_args)
+        if self.extra_link_args:
+            ext.extra_link_args.append(self.extra_link_args)
+        super(build_ext_extra, self).build_extension(ext)
+
 
 # <monkey-patching>
 # http://sourceforge.net/mailarchive/message.php?msg_id=28474701
@@ -59,8 +87,7 @@ install_lib.build = _build
 
 __libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive.i'],
-                        extra_compile_args=['-Ilibarchive'],
-                        extra_link_args=['-l:libarchive.so.11.0.1'],
+                        libraries=['archive'],
                         )
 
 
@@ -86,5 +113,6 @@ zipfile and tarfile modules.''',
           'Topic :: Data :: Compression',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
+      cmdclass = {'build_ext': build_ext_extra},
       ext_modules = [__libarchive],
       )
