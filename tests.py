@@ -57,6 +57,9 @@ def make_temp_archive():
     os.chdir(TMPDIR)
     subprocess.call(cmd)
 
+# TODO: incorporate tests from:
+# http://hg.python.org/cpython/file/a6e1d926cd98/Lib/test/test_zipfile.py
+
 class TestZipRead(unittest.TestCase):
     def setUp(self):
         make_temp_archive()
