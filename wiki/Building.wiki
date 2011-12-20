@@ -1,0 +1,19 @@
+#summary How to build the extension
+
+= Introduction =
+
+Building python-libarchive should be relatively easy. However, there is a case where it is made more difficult.
+
+Because python-libarchive targets libarchive 3.0.x, it will not link against older versions. This means you must have a (as of writing) beta version of the library installed. If you distro uses libarchive in some of the base packages, you will need to manually install the library into a non-standard location and link against it there.
+
+The setup.py file has some modifications that allow you to pass to it the required linker arguments.
+
+= Linking against non-standard location =
+
+Once the library is installed, you can link it like so:
+
+{{{
+python setup.py build_ext --include-dirs='libarchive' --extra-link-args='-l:libarchive.so.11.0.1'
+}}}
+
+This will explicitly link against version 3.0.1 of the library. It will also use the libarchive headers included with python-libarchive. You can of course modify the --include-dirs if you have newer headers (for 3.0.x) elsewhere on your system.
