@@ -1,4 +1,4 @@
-import math, warnings
+import os, math, warnings, stat
 from libarchive import _libarchive
 
 # Suggested block size for libarchive. It may adjust it.
@@ -15,6 +15,20 @@ FORMATS = {
 FILTERS = {
     None:       (_libarchive.archive_read_support_filter_all, _libarchive.archive_write_add_filter_none),
 }
+
+def get_error(archive):
+    return _libarchive.archive_error_string(archive)
+
+def run_and_check(func, archive, *args):
+    ret = func(*args)
+    if ret == _libarchive.ARCHIVE_OK:
+        return
+    elif ret == _libarchive.ARCHIVE_WARN:
+        warnings.warn('Warning executing function: %s.' % get_error(archive), RuntimeWarning)
+    elif ret == _libarchive.ARCHIVE_EOF:
+        raise EOF()
+    else:
+        raise Exception('Error executing function: %s.' % get_error(archive))
 
 
 class EOF(Exception):
@@ -45,34 +59,45 @@ class EntryStream(object):
 
 class Entry(object):
     '''An entry within an archive. Represents the header data and it's location within the archive.'''
-    def __init__(self, archive):
-        self._e = _libarchive.archive_entry_new()
-        self.archive = archive
-        tries = 0
-        while True:
-            tries += 1
-            ret = _libarchive.archive_read_next_header2(self.archive._a, self._e)
-            if ret == _libarchive.ARCHIVE_OK:
-                break
-            elif ret == _libarchive.ARCHIVE_WARN:
-                warnings.warn(_libarchive.archive_error_string(self.archive._a), RuntimeWarning)
-                break
-            elif ret == _libarchive.ARCHIVE_EOF:
-                raise EOF()
-            elif ret in (_libarchive.ARCHIVE_FAILED, _libarchive.ARCHIVE_FATAL):
-                raise Exception('Error reading archive entry. %s.' % self.archive.geterror())
-            elif ret == _libarchive.ARCHIVE_RETRY:
-                if tries > 3:
-                    raise Exception('Error reading archive entry. %s. Failed after %s tries.' % (
-                        self.archive.geterror(), tries))
-                continue
-        self.header_position = archive.header_position
-        self.pathname = _libarchive.archive_entry_pathname_w(self._e)
-        self.size = _libarchive.archive_entry_size(self._e)
-        self.mtime = _libarchive.archive_entry_mtime(self._e)
+    def __init__(self, pathname=None, size=None, mtime=None, mode=None, hpos=None):
+        self.pathname = pathname
+        self.size = size
+        self.mtime = mtime
+        self.mode = mode
+        self.hpos = hpos
 
-    def __del__(self):
-        _libarchive.archive_entry_free(self._e)
+    @property
+    def header_position(self):
+        return self.hpos
+
+    @classmethod
+    def from_archive(cls, archive):
+        e = _libarchive.archive_entry_new()
+        try:
+            run_and_check(_libarchive.archive_read_next_header2, archive._a, e)
+            mode = _libarchive.archive_entry_filetype(e)
+            entry = cls(
+                pathname = _libarchive.archive_entry_pathname(e),
+                size = _libarchive.archive_entry_size(e),
+                mtime = _libarchive.archive_entry_mtime(e),
+                mode = mode,
+                hpos = archive.header_position,
+            )
+        finally:
+            _libarchive.archive_entry_free(e)
+        return entry
+
+    def to_archive(self, archive):
+        e = _libarchive.archive_entry_new()
+        try:
+            _libarchive.archive_entry_set_pathname(e, self.pathname)
+            _libarchive.archive_entry_set_filetype(e, stat.S_IFMT(self.mode))
+            _libarchive.archive_entry_set_size(e, self.size)
+            _libarchive.archive_entry_set_mtime(e, self.mtime, 0)
+            run_and_check(_libarchive.archive_write_header, archive._a, archive._a, e)
+            #self.hpos = archive.header_position
+        finally:
+            _libarchive.archive_entry_free(e)
 
 
 class Archive(object):
@@ -107,20 +132,16 @@ class Archive(object):
             self._filePassed = 0
             self.filename = f
             if self.mode == 'r':
-                ret = _libarchive.archive_read_open_filename(self._a, f, BLOCK_SIZE)
+                run_and_check(_libarchive.archive_read_open_filename, self._a, self._a, f, BLOCK_SIZE)
             else:
-                ret = _libarchive.archive_write_open_filename(self._a, f)
-            if ret not in (_libarchive.ARCHIVE_WARN, _libarchive.ARCHIVE_OK):
-                raise Exception('Error %s opening archive.' % ret)
+                run_and_check(_libarchive.archive_write_open_filename, self._a, self._a, f)
         elif hasattr(f, 'fileno'):
             self._filePassed = 1
             self.filename = getattr(f, 'name', None)
             if self.mode == 'r':
-                ret = _libarchive.archive_read_open_fd(self._a, f.fileno(), BLOCK_SIZE)
+                run_and_check(_libarchive.archive_read_open_fd, self._a, self._a, f.fileno(), BLOCK_SIZE)
             else:
-                ret = _libarchive.archive_write_open_fd(self._a, f.fileno())
-            if ret not in (_libarchive.ARCHIVE_WARN, _libarchive.ARCHIVE_OK):
-                raise Exception('Error %s opening archive.' % ret)
+                run_and_check(_libarchive.archive_write_open_fd, self._a, self._a, f.fileno())
         else:
             raise Exception('Provided file is not path or open file.')
 
@@ -154,23 +175,41 @@ class Archive(object):
         '''The position within the file.'''
         return _libarchive.archive_read_header_position(self._a)
 
-    def copy(self, fd):
-        '''Write current archive entry contents to file.'''
-        if hasattr(fd, 'fileno'):
-            fd = fd.fileno()
-        ret = _libarchive.archive_read_data_into_fd(self._a, fd)
-
     def read(self, size):
         '''Read current archive entry contents into string.'''
         return _libarchive.archive_read_data_into_str(self._a, size)
 
-    def readfile(self, size):
+    def readpath(self, f):
+        '''Write current archive entry contents to file. f can be a file-like object or
+        a path.'''
+        if isinstance(f, basestring):
+            f = file(f, 'w')
+        fd = fd.fileno()
+        ret = _libarchive.archive_read_data_into_fd(self._a, fd)
+
+    def readstream(self, size):
         '''Returns a file-like object for reading current archive entry contents.'''
         return EntryStream(self, size)
 
-    def geterror(self):
-        '''Gets string for last error.'''
-        return _libarchive.archive_error_string(self.archive._a)
+    def write(self, entry, data):
+        '''Writes a string buffer to the archive as the given entry.'''
+        entry.size = len(data)
+        entry.to_archive(self)
+        _libarchive.archive_write_data_from_str(self._a, data)
+        _libarchive.archive_write_finish_entry(self._a)
+
+    def writepath(self, entry, f):
+        '''Writes a file to the archive. f can be a file-like object or a path. Uses
+        write() to do the actual writing.'''
+        if isinstance(f, basestring):
+            f = file(f, 'r')
+        if entry.pathname is None:
+            entry.pathname = getattr(f, 'name', None)
+        st = os.fstat(f.fileno())
+        entry.mtime = st.st_mtime
+        entry.mode = st.st_mode
+        # TODO: optimize this path to write directly from f to archive.
+        self.write(entry, f.read())
 
 
 class SeekableArchive(object):
@@ -244,12 +283,32 @@ class SeekableArchive(object):
         self.seek(entry)
         return self.archive.read(entry.size)
 
-    def readfile(self, member):
+    def readpath(self, member, f):
+        entry = self.getentry(member)
+        self.seek(entry)
+        return self.archive.readpath(f)
+
+    def readstream(self, member):
         '''Returns a file-like object for reading requested archive entry contents.'''
         entry = self.getentry(member)
         self.seek(entry)
-        return self.archive.readfile(entry.size)
+        return self.archive.readstream(entry.size)
 
+    def write(self, member, data):
+        '''Writes a string buffer to the archive as the given entry.'''
+        if isinstance(member, basestring):
+            member = self.entry_klass(pathname=member)
+        return self.archive.write(member, data)
+
+    def writepath(self, member, f):
+        '''Writes a file to the archive. f can be a file-like object or a path. Uses
+        write() to do the actual writing.'''
+        if isinstance(member, basestring):
+            member = self.entry_klass(pathname=member)
+        return self.archive.writepath(member, f)
+
+    def close(self):
+        pass
 
 def test():
     import pdb; pdb.set_trace()

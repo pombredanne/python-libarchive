@@ -145,8 +145,6 @@ extern const struct stat	*archive_entry_stat(struct archive_entry *);
 extern __LA_INT64_T		 archive_read_header_position(struct archive *);
 
 /* data */
-extern __LA_SSIZE_T		 archive_read_data(struct archive *,
-				    void *, size_t);
 extern int archive_read_data_skip(struct archive *);
 extern int archive_read_data_into_buffer(struct archive *,
 			    void *buffer, __LA_SSIZE_T len);
@@ -205,8 +203,6 @@ extern int archive_write_header(struct archive *,
 		     struct archive_entry *);
 
 /* data */
-extern __LA_SSIZE_T	archive_write_data(struct archive *,
-			    const void *, size_t);
 
 /* commit */
 extern int		 archive_write_finish_entry(struct archive *);
@@ -253,11 +249,15 @@ extern const char	*archive_entry_pathname(struct archive_entry *);
 extern const wchar_t	*archive_entry_pathname_w(struct archive_entry *);
 extern __LA_INT64_T	 archive_entry_size(struct archive_entry *);
 extern time_t            archive_entry_mtime(struct archive_entry *);
+extern __LA_MODE_T	 archive_entry_filetype(struct archive_entry *);
+extern __LA_MODE_T	 archive_entry_perm(struct archive_entry *);
 
 /* writing */
 extern void	archive_entry_set_pathname(struct archive_entry *, const char *);
 extern void	archive_entry_set_size(struct archive_entry *, __LA_INT64_T);
 extern void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
+extern void	archive_entry_set_filetype(struct archive_entry *, unsigned int);
+extern void	archive_entry_set_perm(struct archive_entry *, __LA_MODE_T);
 
 
 /* ERROR HANDLING */
@@ -335,14 +335,23 @@ extern const char	*archive_error_string(struct archive *);
 %inline %{
 PyObject *archive_read_data_into_str(struct archive *archive, int len) {
     PyObject *str = NULL;
-    if(!(str = PyString_FromStringAndSize(NULL, len))) {
-        PyErr_SetString(PyExc_MemoryError, 'could not allocate string.');
+    if (!(str = PyString_FromStringAndSize(NULL, len))) {
+        PyErr_SetString(PyExc_MemoryError, "could not allocate string.");
         return NULL;
     }
-    if(len != archive_read_data(archive, PyString_AS_STRING(str), len)) {
-        PyErr_SetString(PyExc_RuntimeError, 'could not read requested data.');
+    if (len != archive_read_data(archive, PyString_AS_STRING(str), len)) {
+        PyErr_SetString(PyExc_RuntimeError, "could not read requested data.");
         return NULL;
     }
     return str;
+}
+
+PyObject *archive_write_data_from_str(struct archive *archive, PyObject *str) {
+    int len = PyString_Size(str);
+    if (!archive_write_data(archive, PyString_AS_STRING(str), len)) {
+        PyErr_SetString(PyExc_RuntimeError, "could not write requested data.");
+        return NULL;
+    }
+    return PyInt_FromLong(len);
 }
 %}
