@@ -99,7 +99,7 @@ This is the most expensive class to use, but depending on your needs can save yo
 
 = Using the low-level API =
 
-Using the low-level API leaves all the work to you. You will need to be care to create and free libarchive structures yourself. You will also need to be well-versed in the return codes and expected parameters of libarchive. In fact, if you are not, then you probably should stop reading now.
+Using the low-level API leaves all the work to you. You will need to be careful to create and free libarchive structures yourself. You will also need to be well-versed in the return codes and expected parameters of libarchive. In fact, if you are not, then you probably should stop reading now.
 
 {{{
 from libarchive import _libarchive
