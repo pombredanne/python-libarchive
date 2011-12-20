@@ -2,19 +2,39 @@ import time
 from libarchive import Entry, SeekableArchive
 from zipfile import ZIP_STORED, ZIP_DEFLATED
 
-ENTRY_ATTR_MAP = (
-    ('filename', 'pathname'),
-    ('file_size', 'size'),
-    ('date_time', 'mtime'),
-)
 
 class ZipEntry(Entry):
     def __init__(self, *args, **kwargs):
         super(ZipEntry, self).__init__(*args, **kwargs)
-        for l, r in ENTRY_ATTR_MAP:
-            setattr(self, l, getattr(self, r))
-            delattr(self, r)
-        self.date_time = time.localtime(self.date_time)[0:6]
+
+    def get_filename(self):
+        return self.pathname
+
+    def set_filename(self, value):
+        self.pathname = value
+
+    filename = property(get_filename, set_filename)
+
+    def get_file_size(self):
+        return self.size
+
+    def set_file_size(self, value):
+        assert isinstance(size, (int, long)), 'Please provide size as int or long.'
+        self.size = value
+
+    file_size = property(get_file_size, set_file_size)
+
+    def get_date_time(self):
+        return time.localtime(self.mtime)[0:6]
+
+    def set_date_time(self, value):
+        assert isinstance(value, tuple), 'mtime should be tuple (year, month, day, hour, minute, second).'
+        assert len(value) == 6, 'mtime should be tuple (year, month, day, hour, minute, second).'
+        self.mtime = time.mktime(value + (0, 0, 0))
+
+    date_time = property(get_date_time, set_date_time)
+
+    header_offset = Entry.header_position
 
     def _get_missing(self):
         raise NotImplemented()
@@ -33,7 +53,6 @@ class ZipEntry(Entry):
     volume = property(_get_missing, _set_missing)
     internal_attr = property(_get_missing, _set_missing)
     external_attr = property(_get_missing, _set_missing)
-    header_offset = property(_get_missing, _set_missing)
     CRC = property(_get_missing, _set_missing)
     compress_size = property(_get_missing, _set_missing)
 
@@ -51,10 +70,10 @@ class ZipFile(SeekableArchive):
     def testzip(self):
         raise NotImplemented()
 
-    def _get_comment(self):
+    def _get_missing(self):
         raise NotImplemented()
 
-    def _set_comment(self, comment):
+    def _set_missing(self, value):
         raise NotImplemented()
 
-    comment = property(_get_comment, _set_comment)
+    comment = property(_get_missing, _set_missing)

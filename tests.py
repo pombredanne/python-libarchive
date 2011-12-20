@@ -3,7 +3,7 @@
 
 import os, unittest, tempfile, random, string, subprocess
 
-from libarchive.zip import ZipFile
+from libarchive.zip import ZipFile, ZipEntry
 
 TMPDIR = tempfile.mkdtemp()
 ZIPCMD = '/usr/bin/zip'
@@ -17,6 +17,7 @@ FILENAMES = (
 )
 
 def make_temp_files():
+    print TMPDIR
     if not os.path.exists(ZIPPATH):
         for name in FILENAMES:
             file(os.path.join(TMPDIR, name), 'w').write(''.join(random.sample(string.printable, 10)))
@@ -65,10 +66,10 @@ class TestZipWrite(unittest.TestCase):
     def test_create(self):
         f = file(ZIPPATH, mode='w')
         z = ZipFile(f, 'w')
+        import pdb; pdb.set_trace()
         for fname in FILENAMES:
             e = ZipEntry(fname)
-            z.add(e)
-            z.write(file(os.path.join(TMPDIR, fname), 'w').read())
+            z.writepath(e, file(os.path.join(TMPDIR, fname), 'r'))
         z.close()
 
 if __name__ == '__main__':
