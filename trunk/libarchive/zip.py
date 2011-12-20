@@ -59,7 +59,7 @@ class ZipEntry(Entry):
 
 class ZipFile(SeekableArchive):
     def __init__(self, f, mode='r', compression=ZIP_DEFLATED, allowZip64=False):
-        super(ZipFile, self).__init__(f, mode=mode, format='zip', entry_klass=ZipEntry)
+        super(ZipFile, self).__init__(f, mode=mode, format='zip', entry_class=ZipEntry)
         if mode == 'w' and compression == ZIP_STORED:
             # Disable compression for writing.
             _libarchive.archive_write_set_format_option(self.archive._a, "zip", "compression", "store")

@@ -10,11 +10,12 @@ ZIPCMD = '/usr/bin/zip'
 ZIPFILE = 'test.zip'
 ZIPPATH = os.path.join(TMPDIR, ZIPFILE)
 
-FILENAMES = (
+FILENAMES = [
     'test1.txt',
     'foo',
-    'álért.txt',
-)
+    # TODO: test non-ASCII chars.
+    #'álért.txt',
+]
 
 def make_temp_files():
     print TMPDIR
@@ -31,32 +32,31 @@ def make_temp_archive():
     os.chdir(TMPDIR)
     subprocess.call(cmd)
 
-#~ class TestZipRead(unittest.TestCase):
-    #~ def setUp(self):
-        #~ make_temp_archive()
+class TestZipRead(unittest.TestCase):
+    def setUp(self):
+        make_temp_archive()
 
-    #~ def test_iterate(self):
-        #~ f = file(ZIPPATH, mode='r')
-        #~ z = ZipFile(f, 'r')
-        #~ count = 0
-        #~ for e in z:
-            #~ count += 1
-        #~ self.assertEqual(count, len(FILENAMES), 'Did not enumerate correct number of items in archive.')
+    def test_iterate(self):
+        f = file(ZIPPATH, mode='r')
+        z = ZipFile(f, 'r')
+        count = 0
+        for e in z:
+            count += 1
+        self.assertEqual(count, len(FILENAMES), 'Did not enumerate correct number of items in archive.')
 
-    #~ def test_filenames(self):
-        #~ f = file(ZIPPATH, mode='r')
-        #~ z = ZipFile(f, 'r')
-        #~ names = []
-        #~ for e in z:
-            #~ names.append(e.filename)
-        #~ print names
-        #~ self.assertEqual(names, FILENAMES, 'File names differ in archive.')
+    def test_filenames(self):
+        f = file(ZIPPATH, mode='r')
+        z = ZipFile(f, 'r')
+        names = []
+        for e in z:
+            names.append(e.filename)
+        self.assertEqual(names, FILENAMES, 'File names differ in archive.')
 
     #~ def test_non_ascii(self):
         #~ pass
 
-    #~ def test_extract_str(self):
-        #~ pass
+    def test_extract_str(self):
+        pass
 
 
 class TestZipWrite(unittest.TestCase):
@@ -66,7 +66,6 @@ class TestZipWrite(unittest.TestCase):
     def test_create(self):
         f = file(ZIPPATH, mode='w')
         z = ZipFile(f, 'w')
-        import pdb; pdb.set_trace()
         for fname in FILENAMES:
             e = ZipEntry(fname)
             z.writepath(e, file(os.path.join(TMPDIR, fname), 'r'))
