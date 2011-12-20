@@ -1,7 +1,7 @@
 import os, math, warnings, stat
 from libarchive import _libarchive
 
-# Suggested block size for libarchive. It may adjust it.
+# Suggested block size for libarchive. Libarchive may adjust it.
 BLOCK_SIZE = 10240
 
 # Functions to initialize read/write for various libarchive supported formats and filters.
@@ -17,9 +17,11 @@ FILTERS = {
 }
 
 def get_error(archive):
+    '''Retrieves the last error description for the given archive instance.'''
     return _libarchive.archive_error_string(archive)
 
-def run_and_check(func, archive, *args):
+def exec_and_check(func, archive, *args):
+    '''Executes a libarchive function and raises an exception when appropriate.'''
     ret = func(*args)
     if ret == _libarchive.ARCHIVE_OK:
         return
@@ -32,7 +34,7 @@ def run_and_check(func, archive, *args):
 
 
 class EOF(Exception):
-    '''Raised by ArchiveInfo.__init__() when unable to read the next
+    '''Raised by ArchiveInfo.from_archive() when unable to read the next
     archive header.'''
     pass
 
@@ -72,10 +74,12 @@ class Entry(object):
 
     @classmethod
     def from_archive(cls, archive):
+        '''Instantiates an Entry class and sets all the properties from an archive header.'''
         e = _libarchive.archive_entry_new()
         try:
-            run_and_check(_libarchive.archive_read_next_header2, archive._a, e)
+            exec_and_check(_libarchive.archive_read_next_header2, archive._a, archive._a, e)
             mode = _libarchive.archive_entry_filetype(e)
+            mode |= _libarchive.archive_entry_perm(e)
             entry = cls(
                 pathname = _libarchive.archive_entry_pathname(e),
                 size = _libarchive.archive_entry_size(e),
@@ -87,14 +91,34 @@ class Entry(object):
             _libarchive.archive_entry_free(e)
         return entry
 
+    @classmethod
+    def from_file(cls, f, entry=None):
+        '''Instantiates an Entry class and sets all the properties from a file on the file system.
+        f can be a file-like object or a path.'''
+        if entry is None:
+            entry = cls()
+        if entry.pathname is None:
+            if isinstance(f, basestring):
+                entry.pathname = f
+                st = os.stat(f)
+            else:
+                entry.pathname = getattr(f, 'name', None)
+                st = os.fstat(f.fileno())
+        entry.size = st.st_size
+        entry.mtime = st.st_mtime
+        entry.mode = st.st_mode
+        return entry
+
     def to_archive(self, archive):
+        '''Creates an archive header and writes it to the given archive.'''
         e = _libarchive.archive_entry_new()
         try:
             _libarchive.archive_entry_set_pathname(e, self.pathname)
             _libarchive.archive_entry_set_filetype(e, stat.S_IFMT(self.mode))
+            _libarchive.archive_entry_set_perm(e, stat.S_IMODE(self.mode))
             _libarchive.archive_entry_set_size(e, self.size)
             _libarchive.archive_entry_set_mtime(e, self.mtime, 0)
-            run_and_check(_libarchive.archive_write_header, archive._a, archive._a, e)
+            exec_and_check(_libarchive.archive_write_header, archive._a, archive._a, e)
             #self.hpos = archive.header_position
         finally:
             _libarchive.archive_entry_free(e)
@@ -103,9 +127,9 @@ class Entry(object):
 class Archive(object):
     '''A low-level archive reader which provides forward-only iteration. Consider
     this a light-weight pythonic libarchive wrapper.'''
-    def __init__(self, f, mode='r', format=None, filter=None, entry_klass=Entry):
+    def __init__(self, f, mode='r', format=None, filter=None, entry_class=Entry):
         assert mode in ('r', 'w', 'a'), 'Mode should be "r", "w", or "a".'
-        self.entry_klass = entry_klass
+        self.entry_class = entry_class
         self.mode = mode
         formats = FORMATS.get(format, None)
         filters = FILTERS.get(filter, None)
@@ -132,23 +156,23 @@ class Archive(object):
             self._filePassed = 0
             self.filename = f
             if self.mode == 'r':
-                run_and_check(_libarchive.archive_read_open_filename, self._a, self._a, f, BLOCK_SIZE)
+                exec_and_check(_libarchive.archive_read_open_filename, self._a, self._a, f, BLOCK_SIZE)
             else:
-                run_and_check(_libarchive.archive_write_open_filename, self._a, self._a, f)
+                exec_and_check(_libarchive.archive_write_open_filename, self._a, self._a, f)
         elif hasattr(f, 'fileno'):
             self._filePassed = 1
             self.filename = getattr(f, 'name', None)
             if self.mode == 'r':
-                run_and_check(_libarchive.archive_read_open_fd, self._a, self._a, f.fileno(), BLOCK_SIZE)
+                exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, f.fileno(), BLOCK_SIZE)
             else:
-                run_and_check(_libarchive.archive_write_open_fd, self._a, self._a, f.fileno())
+                exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, f.fileno())
         else:
             raise Exception('Provided file is not path or open file.')
 
     def __iter__(self):
         while True:
             try:
-                yield self.entry_klass(self)
+                yield self.entry_class.from_archive(self)
             except EOF:
                 break
 
@@ -163,12 +187,15 @@ class Archive(object):
 
     def close(self):
         '''Closes and deallocates the archive reader/writer.'''
+        if self._a is None:
+            return
         if self.mode == 'r':
             _libarchive.archive_read_close(self._a)
             _libarchive.archive_read_free(self._a)
         elif self.mode == 'w':
             _libarchive.archive_write_close(self._a)
             _libarchive.archive_write_free(self._a)
+        self._a = None
 
     @property
     def header_position(self):
@@ -203,24 +230,21 @@ class Archive(object):
         write() to do the actual writing.'''
         if isinstance(f, basestring):
             f = file(f, 'r')
-        if entry.pathname is None:
-            entry.pathname = getattr(f, 'name', None)
-        st = os.fstat(f.fileno())
-        entry.mtime = st.st_mtime
-        entry.mode = st.st_mode
+        entry = self.entry_class.from_file(f)
         # TODO: optimize this path to write directly from f to archive.
         self.write(entry, f.read())
 
 
 class SeekableArchive(object):
     '''A class that provides random-access to archive entries. It does this by using one
-    or many Archive instances to seek to the correct locations. The best performance will
+    or many Archive instances to seek to the correct location. The best performance will
     occur when reading archive entries in the order in which they appear in the archive.
     Reading out of order will cause the archive to be closed and opened each time a
     reverse seek is needed.'''
     def __init__(self, f, **kwargs):
         # Convert file to open file. We need this to reopen the archive.
         mode = kwargs.setdefault('mode', 'r')
+        self.entry_class = kwargs.get('entry_class', Entry)
         if isinstance(f, basestring):
             f = file(f, mode)
         self.f = f
@@ -297,59 +321,15 @@ class SeekableArchive(object):
     def write(self, member, data):
         '''Writes a string buffer to the archive as the given entry.'''
         if isinstance(member, basestring):
-            member = self.entry_klass(pathname=member)
+            member = self.entry_class(pathname=member)
         return self.archive.write(member, data)
 
     def writepath(self, member, f):
         '''Writes a file to the archive. f can be a file-like object or a path. Uses
         write() to do the actual writing.'''
         if isinstance(member, basestring):
-            member = self.entry_klass(pathname=member)
+            member = self.entry_class(pathname=member)
         return self.archive.writepath(member, f)
 
     def close(self):
-        pass
-
-def test():
-    import pdb; pdb.set_trace()
-    #~ f = file('/tmp/tmpcXJbRE/test.zip', 'r')
-    #~ a = _libarchive.archive_read_new()
-    #~ _libarchive.archive_read_support_filter_all(a)
-    #~ _libarchive.archive_read_support_format_all(a)
-    #~ _libarchive.archive_read_open_fd(a, f.fileno(), 10240)
-    #~ while True:
-        #~ e = _libarchive.archive_entry_new()
-        #~ r = _libarchive.archive_read_next_header2(a, e)
-        #~ l = _libarchive.archive_entry_size(e)
-        #~ s = _libarchive.archive_read_data_into_str(a, l)
-        #~ _libarchive.archive_entry_free(e)
-        #~ if r != _libarchive.ARCHIVE_OK:
-            #~ break
-    #~ _libarchive.archive_read_close(a)
-    #~ _libarchive.archive_read_free(a)
-    #~ a = _libarchive.archive_read_new()
-    #~ _libarchive.archive_read_support_filter_all(a)
-    #~ _libarchive.archive_read_support_format_all(a)
-    #~ _libarchive.archive_read_open_fd(a, f.fileno(), 10240)
-    #~ while True:
-        #~ e = _libarchive.archive_entry_new()
-        #~ r = _libarchive.archive_read_next_header2(a, e)
-        #~ l = _libarchive.archive_entry_size(e)
-        #~ s = _libarchive.archive_read_data_into_str(a, l)
-        #~ _libarchive.archive_entry_free(e)
-        #~ if r != _libarchive.ARCHIVE_OK:
-            #~ break
-    #~ _libarchive.archive_read_close(a)
-    #~ _libarchive.archive_read_free(a)
-
-    z = Archive('/tmp/tmpcXJbRE/test.zip')
-    for entry in z:
-        print entry.pathname
-    #~ z = ArchiveFile('tests/test.zip')
-    #~ print '1'
-    #~ z.read('libarchive/Makefile')
-    #~ print '2'
-    #~ z.read('libarchive/_libarchive.i')
-
-if __name__ == '__main__':
-    test()
+        self.archive.close()

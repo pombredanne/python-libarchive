@@ -45,6 +45,8 @@
     $result = PyLong_FromLong((long)$1);
 }
 
+typedef unsigned short   mode_t;
+
 # Everything below is from the archive.h and archive_entry.h files.
 # I excluded functions declarations that are not needed.
 
