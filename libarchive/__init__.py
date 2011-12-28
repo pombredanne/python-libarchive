@@ -320,12 +320,6 @@ class SeekableArchive(object):
                 if curr.header_position == entry.header_position:
                     break
 
-    def copy(self, member, fd):
-        '''Write the requested archive entry contents to the given fd.'''
-        entry = self.getentry(member)
-        self.seek(entry)
-        return self.archive.read(fd)
-
     def read(self, member):
         '''Return the requested archive entry contents as a string.'''
         entry = self.getentry(member)
