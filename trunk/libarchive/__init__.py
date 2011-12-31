@@ -89,9 +89,12 @@ class EntryReadStream(object):
 
 
 class EntryWriteStream(object):
+    '''A file-like object that buffers writes until it is closed. Upon closing this object
+    will add itself as a new entry to the provided archive.'''
     def __init__(self, archive, pathname):
         self.archive = archive
         self.pathname = pathname
+        # TODO: figure out how to write block-by-block (no buffering).
         self.stream = StringIO()
 
     def write(self, data):
