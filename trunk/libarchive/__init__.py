@@ -372,5 +372,6 @@ class SeekableArchive(Archive):
         '''Returns a file-like object for reading requested archive entry contents.'''
         entry = self.getentry(member)
         self.seek(entry)
+        # Pass base read method to avoid calling into SeekableArchive.read()
         return EntryReadStream(entry.size, super(SeekableArchive, self).read)
 
