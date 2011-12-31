@@ -23,8 +23,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os, math, warnings, stat
+import os, math, warnings, stat, time
 from libarchive import _libarchive
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 
 # Suggested block size for libarchive. Libarchive may adjust it.
 BLOCK_SIZE = 10240
@@ -64,14 +68,14 @@ class EOF(Exception):
     pass
 
 
-class EntryStream(object):
+class EntryReadStream(object):
     '''A file-like object for reading an entry from the archive.'''
     def __init__(self, archive, size):
         self.archive = archive
         self.size = size
         self.bytes = 0
 
-    def read(self, bytes):
+    def read(self, bytes=BLOCK_SIZE):
         if self.bytes == self.size:
             # EOF already reached.
             return
@@ -82,6 +86,23 @@ class EntryStream(object):
         data = self.archive.read(bytes)
         self.bytes += len(data)
         return data
+
+
+class EntryWriteStream(object):
+    def __init__(self, archive, pathname):
+        self.archive = archive
+        self.pathname = pathname
+        self.stream = StringIO()
+
+    def write(self, data):
+        self.stream.write(data)
+
+    def close(self):
+        entry = self.archive.entry_class(pathname=self.pathname)
+        entry.size = self.stream.tell()
+        entry.mtime = time.time()
+        entry.mode = stat.S_IFREG
+        self.archive.write(entry, self.stream.getvalue())
 
 
 class Entry(object):
@@ -153,9 +174,17 @@ class Archive(object):
     '''A low-level archive reader which provides forward-only iteration. Consider
     this a light-weight pythonic libarchive wrapper.'''
     def __init__(self, f, mode='r', format=None, filter=None, entry_class=Entry):
-        assert mode in ('r', 'w', 'a'), 'Mode should be "r", "w", or "a".'
-        self.entry_class = entry_class
+        assert mode in ('r', 'w', 'wb', 'a'), 'Mode should be "r", "w", "wb", or "a".'
+        if isinstance(f, basestring):
+            self.filename = f
+            f = file(f, mode)
+        elif hasattr(f, 'fileno'):
+            self.filename = getattr(f, 'name', None)
+        else:
+            raise Exception('Provided file is not path or open file.')
+        self.f = f
         self.mode = mode
+        self.entry_class = entry_class
         formats = FORMATS.get(format, None)
         filters = FILTERS.get(filter, None)
         if self.mode == 'r':
@@ -163,9 +192,8 @@ class Archive(object):
                 raise Exception('Unsupported format %s' % format)
             if filters is None:
                 raise Exception('Unsupported filter %s' % filter)
-            self._a = _libarchive.archive_read_new()
-            formats[0](self._a)
-            filters[0](self._a)
+            self.format = formats[0]
+            self.filter = filters[0]
         else:
             # TODO: how to support appending?
             if formats is None:
@@ -174,25 +202,21 @@ class Archive(object):
                 raise Exception('Unsupported filter %s' % filter)
             if formats[1] is None:
                 raise Exception('Cannot write specified format.')
-            self._a = _libarchive.archive_write_new()
-            formats[1](self._a)
-            filters[1](self._a)
-        if isinstance(f, basestring):
-            self._filePassed = 0
-            self.filename = f
-            if self.mode == 'r':
-                exec_and_check(_libarchive.archive_read_open_filename, self._a, self._a, f, BLOCK_SIZE)
-            else:
-                exec_and_check(_libarchive.archive_write_open_filename, self._a, self._a, f)
-        elif hasattr(f, 'fileno'):
-            self._filePassed = 1
-            self.filename = getattr(f, 'name', None)
-            if self.mode == 'r':
-                exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, f.fileno(), BLOCK_SIZE)
-            else:
-                exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, f.fileno())
+            self.format = formats[1]
+            self.filter = filters[1]
+        self.open()
+
+    def open(self):
+        if self.mode == 'r':
+            self._a = _libarchive.archive_read_new()
         else:
-            raise Exception('Provided file is not path or open file.')
+            self._a = _libarchive.archive_write_new()
+        self.format(self._a)
+        self.filter(self._a)
+        if self.mode == 'r':
+            exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), BLOCK_SIZE)
+        else:
+            exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, self.f.fileno())
 
     def __iter__(self):
         while True:
@@ -241,26 +265,40 @@ class Archive(object):
 
     def readstream(self, size):
         '''Returns a file-like object for reading current archive entry contents.'''
-        return EntryStream(self, size)
+        return EntryReadStream(self, size)
 
-    def write(self, entry, data):
+    def write(self, member, data=None):
         '''Writes a string buffer to the archive as the given entry.'''
-        entry.size = len(data)
-        entry.to_archive(self)
-        _libarchive.archive_write_data_from_str(self._a, data)
+        if isinstance(member, basestring):
+            member = self.entry_class(pathname=member)
+        if data:
+            member.size = len(data)
+        member.to_archive(self)
+        if data:
+            _libarchive.archive_write_data_from_str(self._a, data)
         _libarchive.archive_write_finish_entry(self._a)
 
-    def writepath(self, entry, f):
+    def writepath(self, f, pathname=None):
         '''Writes a file to the archive. f can be a file-like object or a path. Uses
         write() to do the actual writing.'''
+        member = self.entry_class.from_file(f)
         if isinstance(f, basestring):
-            f = file(f, 'r')
-        entry = self.entry_class.from_file(f)
-        # TODO: optimize this path to write directly from f to archive.
-        self.write(entry, f.read())
+            if os.path.isfile(f):
+                f = file(f, 'r')
+        if pathname:
+            member.pathname = pathname
+        if hasattr(f, 'read'):
+            # TODO: optimize this to write directly from f to archive.
+            self.write(member, data=f.read())
+        else:
+            self.write(member)
+
+    def writestream(self, pathname):
+        '''Returns a file-like object for writing a new entry.'''
+        return EntryWriteStream(self, pathname)
 
 
-class SeekableArchive(object):
+class SeekableArchive(Archive): 
     '''A class that provides random-access to archive entries. It does this by using one
     or many Archive instances to seek to the correct location. The best performance will
     occur when reading archive entries in the order in which they appear in the archive.
@@ -269,44 +307,34 @@ class SeekableArchive(object):
     def __init__(self, f, **kwargs):
         # Convert file to open file. We need this to reopen the archive.
         mode = kwargs.setdefault('mode', 'r')
-        self.entry_class = kwargs.get('entry_class', Entry)
         if isinstance(f, basestring):
             f = file(f, mode)
-        self.f = f
-        self.archive_kwargs = kwargs
-        self.entries_complete = False
+        super(SeekableArchive, self).__init__(f, **kwargs)
         self.entries = []
-        self.open()
+        self.eof = False
 
     def __iter__(self):
         for entry in self.entries:
             yield entry
-        if not self.entries_complete:
-            try:
-                for entry in self.archive:
-                    self.entries.append(entry)
-                    yield entry
-            except EOF:
-                self.entries_complete = True
+        if not self.eof:
+            for entry in super(SeekableArchive, self).__iter__():
+                self.entries.append(entry)
+                yield entry
+            self.eof = True
 
-    def open(self):
+    def reopen(self):
         '''Seeks the underlying fd to 0 position, then opens the archive. If the archive
         is already open, this will effectively re-open it (rewind to the beginning).'''
+        self.close();
         self.f.seek(0)
-        self.archive = Archive(self.f, **self.archive_kwargs)
+        self.open()
 
-    def getentry(self, name):
+    def getentry(self, pathname):
         '''Take a name or entry object and returns an entry object.'''
-        if isinstance(member, basestring):
-            # Caller passed a name, so find the entry:
-            for entry in self:
-                if entry.pathname == member:
-                    return entry
-        else:
-            # Caller passed an entry, assume it is correct and
-            # originally came from us.
-            return member
-        raise KeyError('no entry by that name')
+        for entry in self:
+            if entry.pathname == pathname:
+                return entry
+        raise KeyError(name)
 
     def seek(self, entry):
         '''Seeks the archive to the requested entry. Will reopen if necessary.'''
@@ -314,148 +342,8 @@ class SeekableArchive(object):
         if move != 0:
             if move < 0:
                 # can't move back, re-open archive:
-                self.open()
+                self.reopen()
             # move to proper position in stream
             for curr in self.archive:
                 if curr.header_position == entry.header_position:
                     break
-
-    def read(self, member):
-        '''Return the requested archive entry contents as a string.'''
-        entry = self.getentry(member)
-        self.seek(entry)
-        return self.archive.read(entry.size)
-
-    def readpath(self, member, f):
-        entry = self.getentry(member)
-        self.seek(entry)
-        return self.archive.readpath(f)
-
-    def readstream(self, member):
-        '''Returns a file-like object for reading requested archive entry contents.'''
-        entry = self.getentry(member)
-        self.seek(entry)
-        return self.archive.readstream(entry.size)
-
-    def write(self, member, data):
-        '''Writes a string buffer to the archive as the given entry.'''
-        if isinstance(member, basestring):
-            member = self.entry_class(pathname=member)
-        return self.archive.write(member, data)
-
-    def writepath(self, member, f):
-        '''Writes a file to the archive. f can be a file-like object or a path. Uses
-        write() to do the actual writing.'''
-        if isinstance(member, basestring):
-            member = self.entry_class(pathname=member)
-        return self.archive.writepath(member, f)
-
-    def close(self):
-        self.archive.close()
-
-
-class TreeNode(object):
-    def __init__(self, name, entry=None):
-        self.name = name
-        self.entry = entry
-        self._size = 0
-        self.children = {}
-
-    def get_size(self):
-        if self.entry:
-            return self.entry.size
-        return self._size
-
-    def set_size(self, value):
-        if self.entry:
-            return
-        self._size = value
-
-    size = property(get_size, set_size)
-
-    @property
-    def isdir(self):
-        # If there is no entry, we are a phantom node, created just to
-        # contain children (which makes us a directory).
-        if self.entry is None:
-            return True
-        # Otherwise, inspect our entry.
-        return stat.S_ISDIR(self.entry.mode)
-
-
-class TreeArchive(SeekableArchive):
-    '''A subclass of SeekableArchive which presents an archive's contents as a tree structure.
-    It emulates the os module's cwd, listdir and walk functions to act like a file system.'''
-    def __init__(self, *args, **kwargs):
-        super(TreeArchive, self).__init__(*args, **kwargs)
-        self.root = TreeNode('/')
-        self.tree_complete = False
-
-    def build_tree(self):
-        # Don't rebuild the tree.
-        if self.tree_complete:
-            return
-        # Populate the tree with nodes.
-        for entry in self:
-            node = self.root
-            path_parts = entry.pathname.split('/')
-            for i, part in enumerate(path_parts):
-                # Get or create the node.
-                if part in node.children:
-                    curr = node.children.get(part)
-                else:
-                    curr = node.children[part] = TreeNode(part)
-                # If this path part is a leaf, attach the entry. Otherwise
-                # the node is a phantom node that exists just to hold others.
-                if i == len(path_parts) - 1:
-                    curr.entry = entry
-        # Avoid rebuilding the tree after this point, we can now use self.get()
-        # safely: self.walk() uses self.get()..
-        self.tree_complete = True
-        # Calculate size of each node (combined size of it's children).
-        dsizes = {}
-        for root, dirs, files in self.walk('/', topdown=False):
-            dsize = 0
-            for name in files + dirs:
-                node = self.get(os.path.join(root, name))
-                dsize += node.size
-            node = self.get(root)
-            if node.isdir:
-                node.size = dsize
-
-    def get(self, path):
-        self.build_tree()
-        node = self.root
-        if path != '/':
-            path_parts = path.split('/')
-            del path_parts[0]
-            for part in path_parts:
-                node = node.children.get(part, None)
-                if node is None:
-                    raise KeyError(part)
-        return node
-
-    def listdir(self, path):
-        node = self.get(path)
-        return node.children.keys()
-
-    def isdir(self, path):
-        node = self.get(path)
-        return node.isdir
-
-    def walk(self, path, topdown=True):
-        names = self.listdir(path)
-        dirs, nondirs = [], []
-        for name in names:
-            if self.isdir(os.path.join(path, name)):
-                dirs.append(name)
-            else:
-                nondirs.append(name)
-        if topdown:
-            yield path, dirs, nondirs
-        for name in dirs:
-            new_path = os.path.join(path, name)
-            for x in self.walk(new_path, topdown):
-                yield x
-        if not topdown:
-            yield path, dirs, nondirs
