@@ -91,12 +91,20 @@ class TestZipWrite(unittest.TestCase):
     def setUp(self):
         make_temp_files()
 
-    def test_create(self):
+    def test_writepath(self):
         f = file(ZIPPATH, mode='w')
         z = ZipFile(f, 'w')
         for fname in FILENAMES:
-            e = ZipEntry(fname)
-            z.writepath(e, file(os.path.join(TMPDIR, fname), 'r'))
+            z.writepath(file(os.path.join(TMPDIR, fname), 'r'))
+        z.close()
+
+    def test_writestream(self):
+        f = file(ZIPPATH, mode='w')
+        z = ZipFile(f, 'w')
+        for fname in FILENAMES:
+            f = z.writestream(fname)
+            f.write(file(os.path.join(TMPDIR, fname)).read())
+            f.close()
         z.close()
 
 if __name__ == '__main__':
