@@ -363,18 +363,6 @@ class Archive(object):
                 raise Exception('Unsupported filter %s' % filter)
         self.init()
 
-    def init(self):
-        if self.mode == 'r':
-            self._a = _libarchive.archive_read_new()
-        else:
-            self._a = _libarchive.archive_write_new()
-        self.format(self._a)
-        self.filter(self._a)
-        if self.mode == 'r':
-            exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), self.blocksize)
-        else:
-            exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, self.f.fileno())
-
     def __iter__(self):
         while True:
             try:
@@ -390,6 +378,18 @@ class Archive(object):
 
     def __del__(self):
         self.denit()
+
+    def init(self):
+        if self.mode == 'r':
+            self._a = _libarchive.archive_read_new()
+        else:
+            self._a = _libarchive.archive_write_new()
+        self.format(self._a)
+        self.filter(self._a)
+        if self.mode == 'r':
+            exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), self.blocksize)
+        else:
+            exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, self.f.fileno())
 
     def denit(self):
         '''Closes and deallocates the archive reader/writer.'''
