@@ -164,9 +164,9 @@ def is_archive(f, format=None, filter=None):
 
 class EntryReadStream(object):
     '''A file-like object for reading an entry from the archive.'''
-    def __init__(self, size, read_func):
+    def __init__(self, archive, size):
+        self.archive = archive
         self.size = size
-        self.read_func = read_func
         self.bytes = 0
 
     def read(self, bytes=BLOCK_SIZE):
@@ -177,7 +177,7 @@ class EntryReadStream(object):
             # Limit read to remaining bytes
             bytes = self.size - self.bytes
         # Read requested bytes
-        data = self.read_func(bytes)
+        data = _libarchive.archive_read_data_into_str(self.archive._a, size)
         self.bytes += len(data)
         return data
 
@@ -381,7 +381,7 @@ class Archive(object):
 
     def readstream(self, size):
         '''Returns a file-like object for reading current archive entry contents.'''
-        return EntryReadStream(size, self.read)
+        return EntryReadStream(self, size)
 
     def write(self, member, data=None):
         '''Writes a string buffer to the archive as the given entry.'''
@@ -481,6 +481,5 @@ class SeekableArchive(Archive):
         '''Returns a file-like object for reading requested archive entry contents.'''
         entry = self.getentry(member)
         self.seek(entry)
-        # Pass base read method to avoid calling into SeekableArchive.read()
-        return EntryReadStream(entry.size, super(SeekableArchive, self).read)
+        return EntryReadStream(self, entry.size)
 
