@@ -149,6 +149,8 @@ def is_archive(f, format=None, filter=None):
     if isinstance(f, basestring):
         f = file(f, 'r')
     a = _libarchive.archive_read_new()
+    format(a)
+    filter(a)
     try:
         try:
             exec_and_check(_libarchive.archive_read_open_fd, a, a, f.fileno(), BLOCK_SIZE)
