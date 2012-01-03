@@ -29,7 +29,7 @@
 import os, unittest, tempfile, random, string, subprocess
 
 from libarchive import is_archive_name, is_archive
-from libarchive.zip import ZipFile, ZipEntry
+from libarchive.zip import is_zipfile, ZipFile, ZipEntry
 
 TMPDIR = tempfile.mkdtemp()
 ZIPCMD = '/usr/bin/zip'
@@ -72,11 +72,30 @@ class TestIsArchiveName(unittest.TestCase):
         self.assertEqual(is_archive_name('foo.rpm'), 'cpio')
 
 
+class TestIsArchiveZip(unittest.TestCase):
+    def setUp(self):
+        make_temp_archive()
+
+    def test_zip(self):
+        self.assertEqual(is_archive(ZIPPATH), True)
+        self.assertEqual(is_archive(ZIPPATH, format='zip'), True)
+        self.assertEqual(is_archive(ZIPPATH, format='tar'), False)
+
+
+class TestIsArchiveTar(unittest.TestCase):
+    def test_tar(self):
+        pass
+
+
 # TODO: incorporate tests from:
 # http://hg.python.org/cpython/file/a6e1d926cd98/Lib/test/test_zipfile.py
 class TestZipRead(unittest.TestCase):
     def setUp(self):
         make_temp_archive()
+
+    def test_iszipfile(self):
+        self.assertEqual(is_zipfile('/dev/null'), False)
+        self.assertEqual(is_zipfile(ZIPPATH), True)
 
     def test_iterate(self):
         f = file(ZIPPATH, mode='r')
