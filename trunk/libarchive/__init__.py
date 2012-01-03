@@ -308,6 +308,24 @@ class Entry(object):
         finally:
             _libarchive.archive_entry_free(e)
 
+    def isdir(self):
+        return stat.S_ISDIR(self.mode)
+
+    def isfile(self):
+        return stat.S_ISREG(self.mode)
+
+    def issym(self):
+        return stat.S_ISLNK(self.mode)
+
+    def isfifo(self):
+        return stat.S_ISFIFO(self.mode)
+
+    def ischr(self):
+        return stat.S_ISCHR(self.mode)
+
+    def isblk(self):
+        return stat.S_ISBLK(self.mode)
+
 
 class Archive(object):
     '''A low-level archive reader which provides forward-only iteration. Consider
