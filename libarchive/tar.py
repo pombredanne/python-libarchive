@@ -26,6 +26,7 @@
 import time
 from libarchive import is_archive, Entry, SeekableArchive
 from tarfile import DEFAULT_FORMAT, USTAR_FORMAT, GNU_FORMAT, PAX_FORMAT, ENCODING
+from tarfile import REGTYPE, AREGTYPE, LNKTYPE, SYMTYPE, DIRTYPE, FIFOTYPE, CONTTYPE, CHRTYPE, BLKTYPE, GNUTYPE_SPARSE
 
 FORMAT_CONVERSION = {
     USTAR_FORMAT:       'tar',
@@ -42,7 +43,45 @@ def open(**kwargs):
 
 
 class TarInfo(Entry):
-    pass
+    def __init__(self, name):
+        super(TarInfo, self).__init__(pathname=name)
+
+    fromtarfile = Entry.from_archive
+
+    def get_name(self):
+        return self.pathname
+
+    def set_name(self, value):
+        self.pathname = value
+
+    name = property(get_name, set_name)
+
+    @property
+    def get_type(self):
+        if self.isdir():
+            return DIRTYPE
+        elif self.isfile():
+            return REGTYPE
+        elif self.issym():
+            return SYMTYPE
+        #elif self.islnk():
+        #    return LNKTYPE
+        elif self.isfifo():
+            return FIFOTYPE
+        #elif self.iscont():
+        #    return CONTTYPE
+        elif self.ischr():
+            return CHRTYPE
+        elif self.isblk():
+            return BLKTYPE
+
+    def _get_missing(self):
+        raise NotImplemented()
+
+    def _set_missing(self, value):
+        raise NotImplemented()
+
+    pax_headers = property(_get_missing, _set_missing)
 
 
 class TarFile(SeekableArchive):
@@ -95,3 +134,11 @@ class TarFile(SeekableArchive):
         if arcname:
             entry.pathname = arcname
         return entry
+
+    def _get_missing(self):
+        raise NotImplemented()
+
+    def _set_missing(self, value):
+        raise NotImplemented()
+
+    pax_headers = property(_get_missing, _set_missing)
