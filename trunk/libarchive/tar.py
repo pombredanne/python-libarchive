@@ -34,6 +34,7 @@ FORMAT_CONVERSION = {
     PAX_FORMAT:         'pax',
 }
 
+
 def is_tarfile(filename):
     return is_archive(filename, formats=('tar', 'gnu', 'pax'))
 
@@ -58,22 +59,12 @@ class TarInfo(Entry):
 
     @property
     def get_type(self):
-        if self.isdir():
-            return DIRTYPE
-        elif self.isfile():
-            return REGTYPE
-        elif self.issym():
-            return SYMTYPE
-        #elif self.islnk():
-        #    return LNKTYPE
-        elif self.isfifo():
-            return FIFOTYPE
-        #elif self.iscont():
-        #    return CONTTYPE
-        elif self.ischr():
-            return CHRTYPE
-        elif self.isblk():
-            return BLKTYPE
+        for attr, type in (
+                ('isdir', DIRTYPE), ('isfile', REGTYPE), ('issym', SYMTYPE),
+                ('isfifo', FIFOTYPE), ('ischr', CHRTYPE), ('isblk', BLKTYPE),
+            ):
+            if getattr(self, attr)():
+                return type
 
     def _get_missing(self):
         raise NotImplemented()
