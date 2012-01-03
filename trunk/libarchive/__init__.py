@@ -183,6 +183,11 @@ class EntryReadStream(object):
 
 
 class EntryWriteStream(object):
+    '''A file-like object for writing an entry to an archive.
+
+    If the size is known ahead of time and provided, then the file contents
+    are not buffered but flushed directly to the archive. If size is omitted,
+    then the file contents are buffered and flushed in the close() method.'''
     def __init__(self, archive, pathname, size=None):
         self.archive = archive
         self.entry = Entry(pathname=pathname, mtime=time.time(), mode=stat.S_IFREG)
@@ -194,6 +199,9 @@ class EntryWriteStream(object):
             self.entry.to_archive(self.archive)
         self.closed = False
 
+    def __del__(self):
+        self.close()
+
     def write(self, data):
         if self.closed:
             raise Exception('Cannot write to closed stream.')
@@ -203,6 +211,8 @@ class EntryWriteStream(object):
             _libarchive.archive_write_data_from_str(self.archive._a, data)
 
     def close(self):
+        if self.closed:
+            return
         if self.buffer:
             self.entry.size = self.buffer.tell()
             self.entry.to_archive(self.archive)
