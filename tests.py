@@ -140,5 +140,15 @@ class TestZipWrite(unittest.TestCase):
             f.close()
         z.close()
 
+    def test_writestream_unbuffered(self):
+        f = file(ZIPPATH, mode='w')
+        z = ZipFile(f, 'w')
+        for fname in FILENAMES:
+            full_path = os.path.join(TMPDIR, fname)
+            f = z.writestream(fname, os.path.getsize(full_path))
+            f.write(file(full_path).read())
+            f.close()
+        z.close()
+
 if __name__ == '__main__':
     unittest.main()

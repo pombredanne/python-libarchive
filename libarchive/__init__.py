@@ -183,23 +183,32 @@ class EntryReadStream(object):
 
 
 class EntryWriteStream(object):
-    '''A file-like object that buffers writes until it is closed. Upon closing this object
-    will add itself as a new entry to the provided archive.'''
-    def __init__(self, pathname, write_func):
-        self.pathname = pathname
-        self.write_func = write_func
-        # TODO: figure out how to write block-by-block (no buffering).
-        self.stream = StringIO()
+    def __init__(self, archive, pathname, size=None):
+        self.archive = archive
+        self.entry = Entry(pathname=pathname, mtime=time.time(), mode=stat.S_IFREG)
+        if size is None:
+            self.buffer = StringIO()
+        else:
+            self.buffer = None
+            self.entry.size = size
+            self.entry.to_archive(self.archive)
+        self.closed = False
 
     def write(self, data):
-        self.stream.write(data)
+        if self.closed:
+            raise Exception('Cannot write to closed stream.')
+        if self.buffer:
+            self.buffer.write(data)
+        else:
+            _libarchive.archive_write_data_from_str(self.archive._a, data)
 
     def close(self):
-        entry = Entry(pathname=self.pathname)
-        entry.size = self.stream.tell()
-        entry.mtime = time.time()
-        entry.mode = stat.S_IFREG
-        self.write_func(entry, self.stream.getvalue())
+        if self.buffer:
+            self.entry.size = self.buffer.tell()
+            self.entry.to_archive(self.archive)
+            _libarchive.archive_write_data_from_str(self.archive._a, self.buffer.getvalue())
+        _libarchive.archive_write_finish_entry(self.archive._a)
+        self.closed = True
 
 
 class Entry(object):
@@ -390,9 +399,9 @@ class Archive(object):
         else:
             self.write(member)
 
-    def writestream(self, pathname):
+    def writestream(self, pathname, size=None):
         '''Returns a file-like object for writing a new entry.'''
-        return EntryWriteStream(pathname, self.write)
+        return EntryWriteStream(self, pathname, size)
 
 
 class SeekableArchive(Archive): 
