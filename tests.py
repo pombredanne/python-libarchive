@@ -78,8 +78,8 @@ class TestIsArchiveZip(unittest.TestCase):
 
     def test_zip(self):
         self.assertEqual(is_archive(ZIPPATH), True)
-        self.assertEqual(is_archive(ZIPPATH, format='zip'), True)
-        self.assertEqual(is_archive(ZIPPATH, format='tar'), False)
+        self.assertEqual(is_archive(ZIPPATH, formats=('zip', )), True)
+        self.assertEqual(is_archive(ZIPPATH, formats=('tar', )), False)
 
 
 class TestIsArchiveTar(unittest.TestCase):
@@ -135,9 +135,16 @@ class TestZipWrite(unittest.TestCase):
         f = file(ZIPPATH, mode='w')
         z = ZipFile(f, 'w')
         for fname in FILENAMES:
-            f = z.writestream(fname)
-            f.write(file(os.path.join(TMPDIR, fname)).read())
-            f.close()
+            full_path = os.path.join(TMPDIR, fname)
+            i = file(full_path)
+            o = z.writestream(fname)
+            while True:
+                data = i.read(1)
+                if not data:
+                    break
+                o.write(data)
+            o.close()
+            i.close()
         z.close()
 
     def test_writestream_unbuffered(self):
@@ -145,9 +152,15 @@ class TestZipWrite(unittest.TestCase):
         z = ZipFile(f, 'w')
         for fname in FILENAMES:
             full_path = os.path.join(TMPDIR, fname)
-            f = z.writestream(fname, os.path.getsize(full_path))
-            f.write(file(full_path).read())
-            f.close()
+            i = file(full_path)
+            o = z.writestream(fname, os.path.getsize(full_path))
+            while True:
+                data = i.read(1)
+                if not data:
+                    break
+                o.write(data)
+            o.close()
+            i.close()
         z.close()
 
 if __name__ == '__main__':

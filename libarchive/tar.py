@@ -24,4 +24,74 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import time
-from libarchive import Entry, SeekableArchive
+from libarchive import is_archive, Entry, SeekableArchive
+from tarfile import DEFAULT_FORMAT, USTAR_FORMAT, GNU_FORMAT, PAX_FORMAT, ENCODING
+
+FORMAT_CONVERSION = {
+    USTAR_FORMAT:       'tar',
+    GNU_FORMAT:         'gnu',
+    PAX_FORMAT:         'pax',
+}
+
+def is_tarfile(filename):
+    return is_archive(filename, formats=('tar', 'gnu', 'pax'))
+
+
+def open(**kwargs):
+    return TarFile(**kwargs)
+
+
+class TarInfo(Entry):
+    pass
+
+
+class TarFile(SeekableArchive):
+    def __init__(self, name=None, mode='r', fileobj=None, format=DEFAULT_FORMAT, tarinfo=TarInfo, encoding=ENCODING):
+        if name:
+            f = name
+        elif fileobj:
+            f = fileobj
+        try:
+            format = FORMAT_CONVERSON.get(format)
+        except KeyError:
+            raise Exception('Invalid tar format: %s' % format)
+        super(TarFile, self).__init__(f, mode=mode, format=format, entry_class=tarinfo, encoding=encoding)
+
+    getmember   = SeekableArchive.getentry
+    list        = SeekableArchive.printlist
+    extract     = SeekableArchive.readpath
+    extractfile = SeekableArchive.readstream
+
+    def getmembers(self):
+        return list(self)
+
+    def getnames(self):
+        return list(self.iterpaths)
+
+    def next(self):
+        pass # TODO: how to do this?
+
+    def extract(self, member, path=None):
+        if path is None:
+            path = os.getcwd()
+        if isinstance(member, basestring):
+            f = os.path.join(path, member)
+        else:
+            f = os.path.join(path, member.pathname)
+        return self.readpath(member, f)
+
+    def add(self, name, arcname, recursive=True, exclude=None, filter=None):
+        pass # TODO: implement this.
+
+    def addfile(tarinfo, fileobj):
+        return self.writepath(fileobj, tarinfo)
+
+    def gettarinfo(name=None, arcname=None, fileobj=None):
+        if name:
+            f = name
+        elif fileobj:
+            f = fileobj
+        entry = self.entry_class.from_file(f)
+        if arcname:
+            entry.pathname = arcname
+        return entry
