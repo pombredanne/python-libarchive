@@ -24,8 +24,12 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import time
-from libarchive import Entry, SeekableArchive
+from libarchive import is_archive, Entry, SeekableArchive
 from zipfile import ZIP_STORED, ZIP_DEFLATED
+
+
+def is_zipfile(filename):
+    return is_archive(filename, format='zip')
 
 
 class ZipEntry(Entry):

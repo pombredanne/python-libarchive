@@ -41,10 +41,38 @@ FORMATS = {
     'tar':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_gnutar),
     'zip':      (_libarchive.archive_read_support_format_zip, _libarchive.archive_write_set_format_zip),
     'rar':      (_libarchive.archive_read_support_format_rar, None),
+    '7zip':     (_libarchive.archive_read_support_format_7zip, None),
+    'ar':       (_libarchive.archive_read_support_format_ar, None),
+    'cab':      (_libarchive.archive_read_support_format_cab, None),
+    'cpio':     (_libarchive.archive_read_support_format_cpio, _libarchive.archive_write_set_format_cpio_newc),
+    'iso':      (_libarchive.archive_read_support_format_iso9660, _libarchive.archive_write_set_format_iso9660),
+    'lha':      (_libarchive.archive_read_support_format_lha, None),
+    'xar':      (_libarchive.archive_read_support_format_xar, _libarchive.archive_write_set_format_xar),
 }
 
 FILTERS = {
     None:       (_libarchive.archive_read_support_filter_all, _libarchive.archive_write_add_filter_none),
+    'gz':       (_libarchive.archive_read_support_filter_gzip, _libarchive.archive_write_add_filter_gzip),
+    'bz2':      (_libarchive.archive_read_support_filter_bzip2, _libarchive.archive_write_add_filter_bzip2),
+}
+
+# Map file extensions to formats and filters. For supporting quick detection.
+FORMAT_EXTENSIONS = {
+    'tar':      ('.tar', ),
+    'zip':      ('.zip', ),
+    'rar':      ('.rar', ),
+    '7zip':     ('.7z', ),
+    'ar':       ('.ar', ),
+    'cab':      ('.cab', ),
+    'cpio':     ('.rpm', '.cpio'),
+    'iso':      ('.iso', ),
+    'lha':      ('.lha', ),
+    'xar':      ('.xar', ),
+}
+
+FILTER_EXTENSIONS = {
+    'gz':       ('.gz', ),
+    'bz2':      ('.bz2', ),
 }
 
 def get_error(archive):
@@ -68,6 +96,68 @@ class EOF(Exception):
     '''Raised by ArchiveInfo.from_archive() when unable to read the next
     archive header.'''
     pass
+
+
+def get_func(name, items, index):
+    item = items.get(name, None)
+    if item is None:
+        return None
+    return item[index]
+
+
+def is_archive_name(filename, format=None):
+    '''Quick check to see if the given file has an extension indiciating that it is
+    an archive. The format parameter can be used to limit what archive format is acceptable.
+    If omitted, all supported archive formats will be checked.
+
+    This function will return the name of the most likely archive format, None if the file is
+    unlikely to be an archive.'''
+    filename, fileext = os.path.splitext(filename)
+    exts = []
+    map(exts.extend, FILTER_EXTENSIONS.values())
+    if fileext in exts:
+        filename, fileext = os.path.splitext(filename)
+    if format:
+        exts = FORMAT_EXTENSIONS.get(format, [])
+        if fileext not in exts:
+            return format
+    else:
+        for format, exts in FORMAT_EXTENSIONS.items():
+            if fileext in exts:
+                return format
+
+
+def is_archive(f, format=None, filter=None):
+    '''Check to see if the given file is actually an archive. The format parameter
+    can be used to specify which archive format is acceptable. If ommitted, all supported
+    archive formats will be checked. It opens the file using libarchive. If no error is
+    received, the file was successfully detected by the libarchive bidding process.
+
+    This procedure is quite costly, so you should avoid calling it unless you are reasonably
+    sure that the given file is an archive. In other words, you may wish to filter large
+    numbers of file names using is_archive_name() before double-checking the positives with
+    this function.
+
+    This function will return the name of the most likely archive format, None if the file is
+    unlikely to be an archive.'''
+    format = get_func(format, FORMATS, 0)
+    if format is None:
+        return False
+    filter = get_func(filter, FILTERS, 0)
+    if filter is None:
+        return False
+    if isinstance(f, basestring):
+        f = file(f, 'r')
+    a = _libarchive.archive_read_new()
+    try:
+        try:
+            exec_and_check(_libarchive.archive_read_open_fd, a, a, f.fileno(), BLOCK_SIZE)
+            return True
+        except:
+            return False
+    finally:
+        _libarchive.archive_read_close(a)
+        _libarchive.archive_read_free(a)
 
 
 class EntryReadStream(object):
@@ -192,25 +282,23 @@ class Archive(object):
         self.f = f
         self.mode = mode
         self.entry_class = entry_class
-        formats = FORMATS.get(format, None)
-        filters = FILTERS.get(filter, None)
         if self.mode == 'r':
-            if formats is None:
+            self.format = get_func(format, FORMATS, 0)
+            if self.format is None:
                 raise Exception('Unsupported format %s' % format)
-            if filters is None:
+            self.filter = get_func(filter, FILTERS, 0)
+            if self.filter is None:
                 raise Exception('Unsupported filter %s' % filter)
-            self.format = formats[0]
-            self.filter = filters[0]
         else:
             # TODO: how to support appending?
-            if formats is None:
+            if format is None:
+                raise Exception('You must specify a format for writing.')
+            self.format = get_func(format, FORMATS, 1)
+            if self.format is None:
                 raise Exception('Unsupported format %s' % format)
-            if filters is None:
+            self.filter = get_func(filter, FILTERS, 1)
+            if self.filter is None:
                 raise Exception('Unsupported filter %s' % filter)
-            if formats[1] is None:
-                raise Exception('Cannot write specified format.')
-            self.format = formats[1]
-            self.filter = filters[1]
         self.open()
 
     def open(self):
@@ -288,7 +376,7 @@ class Archive(object):
     def writepath(self, f, pathname=None):
         '''Writes a file to the archive. f can be a file-like object or a path. Uses
         write() to do the actual writing.'''
-        member = self.entry_class.from_file(f, encoding=encoding)
+        member = self.entry_class.from_file(f, encoding=self.encoding)
         if isinstance(f, basestring):
             if os.path.isfile(f):
                 f = file(f, 'r')
