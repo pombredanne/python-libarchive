@@ -23,7 +23,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os, math, warnings, stat, time
+import os, sys, math, warnings, stat, time
 from libarchive import _libarchive
 try:
     from cStringIO import StringIO
@@ -33,12 +33,17 @@ except ImportError:
 # Suggested block size for libarchive. Libarchive may adjust it.
 BLOCK_SIZE = 10240
 
+MTIME_FORMAT = ''
+
+# Default encoding scheme.
 ENCODING = 'utf-8'
 
 # Functions to initialize read/write for various libarchive supported formats and filters.
 FORMATS = {
     None:       (_libarchive.archive_read_support_format_all, None),
-    'tar':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_gnutar),
+    'tar':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_ustar),
+    'pax':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_pax),
+    'gnu':      (_libarchive.archive_read_support_format_gnutar, _libarchive.archive_write_set_format_gnutar),
     'zip':      (_libarchive.archive_read_support_format_zip, _libarchive.archive_write_set_format_zip),
     'rar':      (_libarchive.archive_read_support_format_rar, None),
     '7zip':     (_libarchive.archive_read_support_format_7zip, None),
@@ -75,6 +80,12 @@ FILTER_EXTENSIONS = {
     'bz2':      ('.bz2', ),
 }
 
+class EOF(Exception):
+    '''Raised by ArchiveInfo.from_archive() when unable to read the next
+    archive header.'''
+    pass
+
+
 def get_error(archive):
     '''Retrieves the last error description for the given archive instance.'''
     return _libarchive.archive_error_string(archive)
@@ -92,12 +103,6 @@ def exec_and_check(func, archive, *args):
         raise Exception('Error executing function: %s.' % get_error(archive))
 
 
-class EOF(Exception):
-    '''Raised by ArchiveInfo.from_archive() when unable to read the next
-    archive header.'''
-    pass
-
-
 def get_func(name, items, index):
     item = items.get(name, None)
     if item is None:
@@ -105,7 +110,7 @@ def get_func(name, items, index):
     return item[index]
 
 
-def is_archive_name(filename, format=None):
+def is_archive_name(filename, formats=None):
     '''Quick check to see if the given file has an extension indiciating that it is
     an archive. The format parameter can be used to limit what archive format is acceptable.
     If omitted, all supported archive formats will be checked.
@@ -117,17 +122,18 @@ def is_archive_name(filename, format=None):
     map(exts.extend, FILTER_EXTENSIONS.values())
     if fileext in exts:
         filename, fileext = os.path.splitext(filename)
-    if format:
-        exts = FORMAT_EXTENSIONS.get(format, [])
-        if fileext not in exts:
-            return format
+    if formats:
+        for format in formats:
+            exts = FORMAT_EXTENSIONS.get(format, [])
+            if fileext not in exts:
+                return format
     else:
         for format, exts in FORMAT_EXTENSIONS.items():
             if fileext in exts:
                 return format
 
 
-def is_archive(f, format=None, filter=None):
+def is_archive(f, formats=(None, ), filters=(None, )):
     '''Check to see if the given file is actually an archive. The format parameter
     can be used to specify which archive format is acceptable. If ommitted, all supported
     archive formats will be checked. It opens the file using libarchive. If no error is
@@ -140,17 +146,19 @@ def is_archive(f, format=None, filter=None):
 
     This function will return the name of the most likely archive format, None if the file is
     unlikely to be an archive.'''
-    format = get_func(format, FORMATS, 0)
-    if format is None:
-        return False
-    filter = get_func(filter, FILTERS, 0)
-    if filter is None:
-        return False
     if isinstance(f, basestring):
         f = file(f, 'r')
     a = _libarchive.archive_read_new()
-    format(a)
-    filter(a)
+    for format in formats:
+        format = get_func(format, FORMATS, 0)
+        if format is None:
+            return False
+        format(a)
+    for filter in filters:
+        filter = get_func(filter, FILTERS, 0)
+        if filter is None:
+            return False
+        filter(a)
     try:
         try:
             exec_and_check(_libarchive.archive_read_open_fd, a, a, f.fileno(), BLOCK_SIZE)
@@ -169,15 +177,23 @@ class EntryReadStream(object):
         self.size = size
         self.bytes = 0
 
-    def read(self, bytes=BLOCK_SIZE):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        return
+
+    def read(self, bytes=None):
         if self.bytes == self.size:
             # EOF already reached.
             return
-        if self.bytes + bytes > self.size:
+        if bytes is None:
+            bytes = self.size - self.bytes
+        elif self.bytes + bytes > self.size:
             # Limit read to remaining bytes
             bytes = self.size - self.bytes
         # Read requested bytes
-        data = _libarchive.archive_read_data_into_str(self.archive._a, size)
+        data = _libarchive.archive_read_data_into_str(self.archive._a, bytes)
         self.bytes += len(data)
         return data
 
@@ -198,6 +214,12 @@ class EntryWriteStream(object):
             self.entry.size = size
             self.entry.to_archive(self.archive)
         self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
 
     def __del__(self):
         self.close()
@@ -290,9 +312,10 @@ class Entry(object):
 class Archive(object):
     '''A low-level archive reader which provides forward-only iteration. Consider
     this a light-weight pythonic libarchive wrapper.'''
-    def __init__(self, f, mode='r', format=None, filter=None, entry_class=Entry, encoding=ENCODING):
+    def __init__(self, f, mode='r', format=None, filter=None, entry_class=Entry, encoding=ENCODING, blocksize=BLOCK_SIZE):
         assert mode in ('r', 'w', 'wb', 'a'), 'Mode should be "r", "w", "wb", or "a".'
         self.encoding = encoding
+        self.blocksize = blocksize
         if isinstance(f, basestring):
             self.filename = f
             f = file(f, mode)
@@ -320,9 +343,9 @@ class Archive(object):
             self.filter = get_func(filter, FILTERS, 1)
             if self.filter is None:
                 raise Exception('Unsupported filter %s' % filter)
-        self.open()
+        self.init()
 
-    def open(self):
+    def init(self):
         if self.mode == 'r':
             self._a = _libarchive.archive_read_new()
         else:
@@ -330,7 +353,7 @@ class Archive(object):
         self.format(self._a)
         self.filter(self._a)
         if self.mode == 'r':
-            exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), BLOCK_SIZE)
+            exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), self.blocksize)
         else:
             exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, self.f.fileno())
 
@@ -345,12 +368,12 @@ class Archive(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        self.close()
+        self.denit()
 
     def __del__(self):
-        self.close()
+        self.denit()
 
-    def close(self):
+    def denit(self):
         '''Closes and deallocates the archive reader/writer.'''
         if self._a is None:
             return
@@ -362,10 +385,17 @@ class Archive(object):
             _libarchive.archive_write_free(self._a)
         self._a = None
 
+    def close(self):
+        self.denit()
+
     @property
     def header_position(self):
         '''The position within the file.'''
         return _libarchive.archive_read_header_position(self._a)
+
+    def iterpaths(self):
+        for entry in self:
+            yield entry.pathname
 
     def read(self, size):
         '''Read current archive entry contents into string.'''
@@ -375,6 +405,9 @@ class Archive(object):
         '''Write current archive entry contents to file. f can be a file-like object or
         a path.'''
         if isinstance(f, basestring):
+            basedir = os.path.basename(f)
+            if not os.path.exists(basedir) :
+                os.makedirs(basedir)
             f = file(f, 'w')
         fd = fd.fileno()
         ret = _libarchive.archive_read_data_into_fd(self._a, fd)
@@ -413,6 +446,15 @@ class Archive(object):
         '''Returns a file-like object for writing a new entry.'''
         return EntryWriteStream(self, pathname, size)
 
+    def printlist(self, s=sys.stdout):
+        for entry in self:
+            s.write(entry.size)
+            s.write('\t')
+            s.write(entry.mtime.strftime(MTIME_FORMAT))
+            s.write('\t')
+            s.write(entry.pathname)
+        s.flush()
+
 
 class SeekableArchive(Archive): 
     '''A class that provides random-access to archive entries. It does this by using one
@@ -443,9 +485,9 @@ class SeekableArchive(Archive):
     def reopen(self):
         '''Seeks the underlying fd to 0 position, then opens the archive. If the archive
         is already open, this will effectively re-open it (rewind to the beginning).'''
-        self.close();
+        self.denit();
         self.f.seek(0)
-        self.open()
+        self.init()
 
     def getentry(self, pathname):
         '''Take a name or entry object and returns an entry object.'''

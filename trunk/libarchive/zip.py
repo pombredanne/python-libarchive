@@ -23,13 +23,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import time
+import os, time
 from libarchive import is_archive, Entry, SeekableArchive
 from zipfile import ZIP_STORED, ZIP_DEFLATED
 
 
 def is_zipfile(filename):
-    return is_archive(filename, format='zip')
+    return is_archive(filename, formats=('zip', ))
 
 
 class ZipEntry(Entry):
@@ -92,9 +92,52 @@ class ZipFile(SeekableArchive):
         if mode == 'w' and compression == ZIP_STORED:
             # Disable compression for writing.
             _libarchive.archive_write_set_format_option(self.archive._a, "zip", "compression", "store")
+        self.compression = compression
+
+    getinfo     = SeekableArchive.getentry
+
+    def namelist(self):
+        return list(self.iterpaths)
+
+    def infolist(self):
+        return list(self)
+
+    def open(self, name, mode, pwd=None):
+        if pwd:
+            raise NotImplemented('Encryption not supported.')
+        if mode == 'r':
+            return self.readstream(name)
+        else:
+            return self.writestream(name)
+
+    def extract(self, name, path=None, pwd=None):
+        if pwd:
+            raise NotImplemented('Encryption not supported.')
+        if not path:
+            path = os.getcwd()
+        return self.readpath(name, os.path.join(path, name))
+
+    def extractall(self, path, names=None, pwd=None):
+        if pwd:
+            raise NotImplemented('Encryption not supported.')
+        if not names:
+            names = self.namelist()
+        if names:
+            for name in names:
+                self.extract(name, path)
+
+    def read(self, name, pwd=None):
+        if pwd:
+            raise NotImplemented('Encryption not supported.')
+        return self.read(name)
+
+    def writestr(self, member, data, compress_type=None):
+        if compress_type != self.compression:
+            raise Exception('Cannot change compression type for individual entries.')
+        return self.write(member, data)
 
     def setpassword(self, pwd):
-        raise NotImplemented()
+        raise NotImplemented('Encryption not supported.')
 
     def testzip(self):
         raise NotImplemented()
