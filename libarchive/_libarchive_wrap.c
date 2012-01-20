@@ -2915,21 +2915,20 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 
 /* -------- TYPES TABLE (BEGIN) -------- */
 
-#define SWIGTYPE_p___LA_SSIZE_T swig_types[0]
-#define SWIGTYPE_p_archive swig_types[1]
-#define SWIGTYPE_p_archive_close_callback swig_types[2]
-#define SWIGTYPE_p_archive_entry swig_types[3]
-#define SWIGTYPE_p_archive_open_callback swig_types[4]
-#define SWIGTYPE_p_archive_write_callback swig_types[5]
-#define SWIGTYPE_p_char swig_types[6]
-#define SWIGTYPE_p_int64_t swig_types[7]
-#define SWIGTYPE_p_size_t swig_types[8]
-#define SWIGTYPE_p_stat swig_types[9]
-#define SWIGTYPE_p_time_t swig_types[10]
-#define SWIGTYPE_p_unsigned_short swig_types[11]
-#define SWIGTYPE_p_wchar_t swig_types[12]
-static swig_type_info *swig_types[14];
-static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
+#define SWIGTYPE_p_archive swig_types[0]
+#define SWIGTYPE_p_archive_close_callback swig_types[1]
+#define SWIGTYPE_p_archive_entry swig_types[2]
+#define SWIGTYPE_p_archive_open_callback swig_types[3]
+#define SWIGTYPE_p_archive_write_callback swig_types[4]
+#define SWIGTYPE_p_char swig_types[5]
+#define SWIGTYPE_p_int64_t swig_types[6]
+#define SWIGTYPE_p_size_t swig_types[7]
+#define SWIGTYPE_p_stat swig_types[8]
+#define SWIGTYPE_p_time_t swig_types[9]
+#define SWIGTYPE_p_unsigned_short swig_types[10]
+#define SWIGTYPE_p_wchar_t swig_types[11]
+static swig_type_info *swig_types[13];
+static swig_module_info swig_module = {swig_types, 12, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3705,50 +3704,6 @@ SWIGINTERN PyObject *_wrap_archive_read_data_skip(PyObject *SWIGUNUSEDPARM(self)
   }
   arg1 = (struct archive *)(argp1);
   result = (int)archive_read_data_skip(arg1);
-  resultobj = SWIG_From_int((int)(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_archive_read_data_into_buffer(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct archive *arg1 = (struct archive *) 0 ;
-  void *arg2 = (void *) 0 ;
-  __LA_SSIZE_T arg3 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int res2 ;
-  void *argp3 ;
-  int res3 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
-  int result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OOO:archive_read_data_into_buffer",&obj0,&obj1,&obj2)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_archive, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "archive_read_data_into_buffer" "', argument " "1"" of type '" "struct archive *""'"); 
-  }
-  arg1 = (struct archive *)(argp1);
-  res2 = SWIG_ConvertPtr(obj1,SWIG_as_voidptrptr(&arg2), 0, 0);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "archive_read_data_into_buffer" "', argument " "2"" of type '" "void *""'"); 
-  }
-  {
-    res3 = SWIG_ConvertPtr(obj2, &argp3, SWIGTYPE_p___LA_SSIZE_T,  0 );
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "archive_read_data_into_buffer" "', argument " "3"" of type '" "__LA_SSIZE_T""'"); 
-    }  
-    if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "archive_read_data_into_buffer" "', argument " "3"" of type '" "__LA_SSIZE_T""'");
-    } else {
-      arg3 = *((__LA_SSIZE_T *)(argp3));
-    }
-  }
-  result = (int)archive_read_data_into_buffer(arg1,arg2,arg3);
   resultobj = SWIG_From_int((int)(result));
   return resultobj;
 fail:
@@ -5585,7 +5540,6 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"archive_entry_stat", _wrap_archive_entry_stat, METH_VARARGS, NULL},
 	 { (char *)"archive_read_header_position", _wrap_archive_read_header_position, METH_VARARGS, NULL},
 	 { (char *)"archive_read_data_skip", _wrap_archive_read_data_skip, METH_VARARGS, NULL},
-	 { (char *)"archive_read_data_into_buffer", _wrap_archive_read_data_into_buffer, METH_VARARGS, NULL},
 	 { (char *)"archive_read_data_into_fd", _wrap_archive_read_data_into_fd, METH_VARARGS, NULL},
 	 { (char *)"archive_read_support_filter_all", _wrap_archive_read_support_filter_all, METH_VARARGS, NULL},
 	 { (char *)"archive_read_support_filter_bzip2", _wrap_archive_read_support_filter_bzip2, METH_VARARGS, NULL},
@@ -5666,7 +5620,6 @@ static PyMethodDef SwigMethods[] = {
 
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
-static swig_type_info _swigt__p___LA_SSIZE_T = {"_p___LA_SSIZE_T", "__LA_SSIZE_T *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_archive = {"_p_archive", "struct archive *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_archive_close_callback = {"_p_archive_close_callback", "archive_close_callback *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_archive_entry = {"_p_archive_entry", "struct archive_entry *", 0, 0, (void*)0, 0};
@@ -5681,7 +5634,6 @@ static swig_type_info _swigt__p_unsigned_short = {"_p_unsigned_short", "unsigned
 static swig_type_info _swigt__p_wchar_t = {"_p_wchar_t", "wchar_t *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
-  &_swigt__p___LA_SSIZE_T,
   &_swigt__p_archive,
   &_swigt__p_archive_close_callback,
   &_swigt__p_archive_entry,
@@ -5696,7 +5648,6 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_wchar_t,
 };
 
-static swig_cast_info _swigc__p___LA_SSIZE_T[] = {  {&_swigt__p___LA_SSIZE_T, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_archive[] = {  {&_swigt__p_archive, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_archive_close_callback[] = {  {&_swigt__p_archive_close_callback, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_archive_entry[] = {  {&_swigt__p_archive_entry, 0, 0, 0},{0, 0, 0, 0}};
@@ -5711,7 +5662,6 @@ static swig_cast_info _swigc__p_unsigned_short[] = {  {&_swigt__p_unsigned_short
 static swig_cast_info _swigc__p_wchar_t[] = {  {&_swigt__p_wchar_t, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
-  _swigc__p___LA_SSIZE_T,
   _swigc__p_archive,
   _swigc__p_archive_close_callback,
   _swigc__p_archive_entry,

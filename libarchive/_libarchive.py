@@ -116,10 +116,6 @@ def archive_read_data_skip(*args):
   return __libarchive.archive_read_data_skip(*args)
 archive_read_data_skip = __libarchive.archive_read_data_skip
 
-def archive_read_data_into_buffer(*args):
-  return __libarchive.archive_read_data_into_buffer(*args)
-archive_read_data_into_buffer = __libarchive.archive_read_data_into_buffer
-
 def archive_read_data_into_fd(*args):
   return __libarchive.archive_read_data_into_fd(*args)
 archive_read_data_into_fd = __libarchive.archive_read_data_into_fd

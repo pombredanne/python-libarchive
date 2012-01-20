@@ -20,4 +20,4 @@ __libarchive.so: _libarchive_wrap.o
 	${CC} _libarchive_wrap.o -shared $$(python${PYVER}-config --ldflags) -o __libarchive.so ${LIBS}
 
 clean:
-	rm -f *_wrap* *.o *.so _libarchive.py *.pyc
+	rm -f *.o *.so *.pyc
