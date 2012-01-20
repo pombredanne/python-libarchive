@@ -197,6 +197,8 @@ class EntryReadStream(object):
         self.bytes += len(data)
         return data
 
+    def close(self):
+        pass # No-op
 
 class EntryWriteStream(object):
     '''A file-like object for writing an entry to an archive.
@@ -393,7 +395,7 @@ class Archive(object):
 
     def denit(self):
         '''Closes and deallocates the archive reader/writer.'''
-        if self._a is None:
+        if getattr(self, '_a', None) is None:
             return
         if self.mode == 'r':
             _libarchive.archive_read_close(self._a)
