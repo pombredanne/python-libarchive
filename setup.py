@@ -35,7 +35,7 @@ except ImportError:
 
 name = 'python-libarchive'
 version = '3.0.3'
-release = '1'
+release = '2'
 versrel = version + '-' + release
 download_url = "http://" + name + ".googlecode.com/files/" + name + "-" + \
                                                           versrel + ".tar.gz"
