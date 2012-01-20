@@ -33,6 +33,14 @@ except ImportError:
     from distutils.command.build_ext import build_ext
 
 
+name = 'python-libarchive'
+version = '3.0.3'
+release = '1'
+versrel = version + '-' + release
+download_url = "http://" + name + ".googlecode.com/files/" + name + "-" + \
+                                                          versrel + ".tar.gz"
+
+
 class build_ext_extra(build_ext, object):
     """
     Extend build_ext allowing extra_compile_args and extra_link_args to be set
@@ -60,6 +68,7 @@ class build_ext_extra(build_ext, object):
             ext.extra_link_args.append(self.extra_link_args)
         super(build_ext_extra, self).build_extension(ext)
 
+
 __libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive_wrap.c'],
                         libraries=['archive'],
@@ -68,8 +77,8 @@ __libarchive = Extension(name='libarchive.__libarchive',
                         )
 
 
-setup(name = 'python-libarchive',
-      version = '3.0.3-1',
+setup(name = name,
+      version = versrel,
       description = 'A libarchive wrapper for Python.',
       long_description = '''\
 A complete wrapper for the libarchive library generated using SWIG.
@@ -80,6 +89,7 @@ zipfile and tarfile modules.''',
       author = 'Ben Timby',
       author_email = 'btimby at gmail dot com',
       url = 'http://code.google.com/p/python-libarchive/',
+      download_url = download_url,
       packages = ['libarchive'],
       classifiers = [
           'Development Status :: 4 - Beta',
