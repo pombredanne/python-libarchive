@@ -83,7 +83,7 @@ $ cd python-libarchive-3.0.3-1
 $ sudo python setup.py install
 }}}
 
-You can also try using pip.
+You can also install using pip.
 
 {{{
 $ pip install python-libarchive
