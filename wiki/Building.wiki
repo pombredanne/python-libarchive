@@ -14,13 +14,13 @@ Many Linux distributions include libarchive 2. This extension only works with li
 
 *Prerequisites.*
 
-You will need either automake or cmake to install libarchive. In addition, you will also need a compiler and some other tools. To install these prerequisites do the following:
+You will need either automake or cmake to install libarchive. Also required is python-dev. In addition, you will also need a compiler and some other tools. To install these prerequisites do the following:
 
 On Debian/Ubuntu:
 
 {{{
-# Install compiler
-$ sudo apt-get install build-essential
+# Install compiler and tools
+$ sudo apt-get install build-essential libtool python-dev
 
 # Install automake
 $ sudo apt-get install automake
@@ -32,8 +32,9 @@ $ sudo apt-get install cmake
 or CentOS/Fedora:
 
 {{{
-# Install compiler
+# Install compiler and tools
 $ sudo yum groupinstall "Development Tools"
+$ sudo yum install python-devel libtool
 
 # Install automake
 $ sudo yum install automake
