@@ -42,4 +42,10 @@ $ cd python-libarchive-3.0.3-1
 $ sudo python setup.py install
 }}}
 
+You can also try using pip.
+
+{{
+pip install python-libarchive
+}}}
+
 This will explicitly link against version 3.0.3 of the library.
