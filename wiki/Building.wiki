@@ -70,9 +70,9 @@ Now libarchive 3.0.3 is installed into /usr/local/. The next step is to build an
 Now that libarchive is installed, you can install the python extension using the steps below.
 
 {{{
-$ wget http://python-libarchive.googlecode.com/files/python-libarchive-3.0.3-1.tar.gz
-$ tar xzf python-libarchive-3.0.3-1.tar.gz
-$ cd python-libarchive-3.0.3-1/
+$ wget http://python-libarchive.googlecode.com/files/python-libarchive-3.0.3-2.tar.gz
+$ tar xzf python-libarchive-3.0.3-2.tar.gz
+$ cd python-libarchive-3.0.3-2/
 $ sudo python setup.py install
 }}}
 
