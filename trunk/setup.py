@@ -69,7 +69,7 @@ __libarchive = Extension(name='libarchive.__libarchive',
 
 
 setup(name = 'python-libarchive',
-      version = '3.0.1-1',
+      version = '3.0.3-1',
       description = 'A libarchive wrapper for Python.',
       long_description = '''\
 A complete wrapper for the libarchive library generated using SWIG.
