@@ -27,6 +27,16 @@ for entry in a:
 a.close()
 }}}
 
+python-libarchive is also a context manager, so the above could be written as:
+
+{{{
+import libarchive
+
+with libarchive.Archive('my_archive.zip') as a:
+    for entry in a:
+        print entry.pathname
+}}}
+
 You can also extract files. However, you can only extract the current item. Once you have iterated past an entry, there is no going back.
 
 {{{
