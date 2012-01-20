@@ -12,11 +12,37 @@ The setup.py file has some modifications that allow you to pass to it the requir
 
 Many Linux distributions include libarchive 2. This extension only works with libarchive 3. In these cases, you must install libarchive to a /usr/local. This will allow it to co-exist with the version installed with your distribution. To install libarchive using autoconf, follow the instructions below.
 
+*Prerequisites.*
+
+You will need either automake or cmake to install libarchive. To install these prerequisites do the following:
+
+On Debian/Ubuntu:
+
+{{{
+# Install automake
+$ sudo apt-get install automake
+
+# Or install cmake
+$ sudo apt-get install cmake
+}}}
+
+or CentOS:
+
+{{{
+# Install automake
+$ sudo yum install automake
+
+# Or install cmake
+$ sudo yum install cmake
+}}}
+
+You should now be able to install libarchive.
+
 {{{
 $ wget http://libarchive.googlecode.com/files/libarchive-3.0.3.tar.gz
 $ tar xzf libarchive-3.0.3.tar.gz
 
-# Build configure using autoconf...
+# Configure using automake...
 $ cd libarchive-3.0.3/
 $ build/autogen.sh
 $ ./configure --prefix=/usr/local
