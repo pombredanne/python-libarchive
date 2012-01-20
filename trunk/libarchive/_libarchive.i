@@ -173,8 +173,6 @@ extern __LA_INT64_T		 archive_read_header_position(struct archive *);
 
 /* data */
 extern int archive_read_data_skip(struct archive *);
-extern int archive_read_data_into_buffer(struct archive *,
-			    void *buffer, __LA_SSIZE_T len);
 extern int archive_read_data_into_fd(struct archive *, int fd);
 
 /* FILTERS */
