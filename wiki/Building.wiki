@@ -21,7 +21,7 @@ $ sudo apt-get install automake
 $ sudo apt-get install cmake
 }}}
 
-or CentOS/Fedora:
+Or CentOS/Fedora:
 
 {{{
 # Install compiler and tools
@@ -88,10 +88,23 @@ setup.py will explicitly link against version 3.0.3 of the library.
 
 The test suite is located in the root directory. This is done purposefully to make hacking easier. If you make changes to the library, you can run the test suite against the local copy in the libarchive/ subdirectory rather than the version installed on your system.
 
-However, this means you need to have the extension compiled in this same directory. You can accomplish this using the following commands.
+However, this means you need to have the extension compiled in this same directory. You will also need SWIG for this step. You can accomplish this using the following commands.
+
+On Debian/Ubuntu:
 
 {{{
-# Use the Makefile to re-SWIG the interface and recompile the extension.
+$ sudo apt-get install swig
+}}}
+
+Or CentOS/Fedora:
+
+{{{
+$ sudo yum install swig
+}}}
+
+Now you can re-SWIG the interface and recompile the extension.
+
+{{{
 $ cd libarchive/
 $ make
 $ cd ..
