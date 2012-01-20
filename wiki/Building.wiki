@@ -15,13 +15,14 @@ Many Linux distributions include libarchive 2. This extension only works with li
 {{{
 $ wget http://libarchive.googlecode.com/files/libarchive-3.0.3.tar.gz
 $ tar xzf libarchive-3.0.3.tar.gz
-$ cd libarchive-3.0.3/
 
 # Build configure using autoconf...
+$ cd libarchive-3.0.3/
 $ build/autogen.sh
 $ ./configure --prefix=/usr/local
 
 # Or configure using cmake...
+$ mkdir build
 $ cd build
 $ cmake -DCMAKE_INSTALL_PREFIX=/usr/local ../libarchive-3.0.3
 
