@@ -44,7 +44,7 @@ $ sudo python setup.py install
 
 You can also try using pip.
 
-{{
+{{{
 pip install python-libarchive
 }}}
 
