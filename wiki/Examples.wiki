@@ -42,11 +42,10 @@ You can also extract files. However, you can only extract the current item. Once
 {{{
 import libarchive
 
-a = libarchive.Archive('my_archive.zip')
-for entry in a:
-    if entry.pathname == 'my_file.txt':
-        print 'File Contents:', a.read()
-a.close()
+with libarchive.Archive('my_archive.zip') as a:
+    for entry in a:
+        if entry.pathname == 'my_file.txt':
+            print 'File Contents:', a.read()
 }}}
 
 Besides the read() method, there is also readpath() and readstream(). Readpath() will extract the file to a path or already opened file. Readstream() will return a file-like object that can be used to read chunks of the file. Larger files being read from the archive should probably use one of these functions instead of read() which will read then entire contents into memory.
@@ -56,10 +55,9 @@ Writing archives is also straightforward. You open an Archive() class then add f
 {{{
 import libarchive
 
-a = libarchive.Archive('my_archive.zip', 'w')
-for name in os.listdir('.'):
-    a.write(libarchive.Entry(name), file(name, 'r').read())
-a.close()
+with libarchive.Archive('my_archive.zip', 'w') as a:
+    for name in os.listdir('.'):
+        a.write(libarchive.Entry(name), file(name, 'r').read())
 }}}
 
 Again, there is also a writepath() method which will write a file-like object or path directly to the archive. The above example could have been written as the following.
@@ -67,10 +65,9 @@ Again, there is also a writepath() method which will write a file-like object or
 {{{
 import libarchive
 
-a = libarchive.Archive('my_archive.zip', 'w')
-for name in os.listdir('.'):
-    a.writepath(libarchive.Entry(name), name)
-a.close()
+with libarchive.Archive('my_archive.zip', 'w') as a:
+    for name in os.listdir('.'):
+        a.writepath(libarchive.Entry(name), name)
 }}}
 
 In addition to the Archive class. There is also SeekableArchive. This class provides random access when reading an archive. It will remember where entries are located within the archive stream, and will close/reopen the stream and seek to the entry's location. So, you can extract an item directly. The first example can be written as follows.
@@ -78,9 +75,8 @@ In addition to the Archive class. There is also SeekableArchive. This class prov
 {{{
 import libarchive
 
-a = libarchive.SeekableArchive('my_archive.zip')
-print 'File Contents:', a.read('my_file.txt')
-a.close()
+with libarchive.SeekableArchive('my_archive.zip') as a:
+    print 'File Contents:', a.read('my_file.txt')
 }}}
 
 There is overhead involved in using the SeekableArchive, so it is suggested that you use the Archive in cases that you don't need random access to an archives entries. In fact, the above example was probably better off using the Archive class.
