@@ -85,19 +85,6 @@ a.close()
 
 There is overhead involved in using the SeekableArchive, so it is suggested that you use the Archive in cases that you don't need random access to an archives entries. In fact, the above example was probably better off using the Archive class.
 
-{{{
-import libarchive
-
-a = libarchive.TreeArchive('my_archive.zip')
-print a.listdir('/')                          # prints ['usr']
-print a.listdir('/usr')                       # prints ['src']
-print a.listdir('/usr/src')                   # prints ['python-libarchive']
-print a.listdir('/usr/src/python-libarchive') # prints ['README']
-a.close()
-}}}
-
-This is the most expensive class to use, but depending on your needs can save you a lot of work. This class also provides walk() and isdir() methods to complete the file system style interface.
-
 = Using the low-level API =
 
 Using the low-level API leaves all the work to you. You will need to be careful to create and free libarchive structures yourself. You will also need to be well-versed in the return codes and expected parameters of libarchive. In fact, if you are not, then you probably should stop reading now.
