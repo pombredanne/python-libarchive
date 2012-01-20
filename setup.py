@@ -27,14 +27,10 @@
 
 try:
     from setuptools import setup, Extension
-    from setuptools.command.build import build
     from setuptools.command.build_ext import build_ext
-    from setuptools.command.install_lib import install_lib
 except ImportError:
     from distutils.core import setup, Extension
-    from distutils.command.build import build
     from distutils.command.build_ext import build_ext
-    from distutils.command.install_lib import install_lib
 
 
 class build_ext_extra(build_ext, object):
@@ -54,8 +50,8 @@ class build_ext_extra(build_ext, object):
 
     def initialize_options(self):
         build_ext.initialize_options(self)
-        self.extra_compile_args = None        
-        self.extra_link_args = None        
+        self.extra_compile_args = None
+        self.extra_link_args = None
 
     def build_extension(self, ext):
         if self.extra_compile_args:
@@ -64,38 +60,19 @@ class build_ext_extra(build_ext, object):
             ext.extra_link_args.append(self.extra_link_args)
         super(build_ext_extra, self).build_extension(ext)
 
-
-# <monkey-patching>
-# http://sourceforge.net/mailarchive/message.php?msg_id=28474701
-# hack distutils so that extensions are built before python modules;
-# this is necessary for SWIG-generated .py files
-build.sub_commands = [('build_ext', build.has_ext_modules),
-                     ('build_py', build.has_pure_modules),
-                     ('build_clib', build.has_c_libraries),
-                     ('build_scripts', build.has_scripts)]
-
-def _build(self):
-    if not self.skip_build:
-        if self.distribution.has_ext_modules():
-            self.run_command('build_ext')
-        if self.distribution.has_pure_modules():
-            self.run_command('build_py')
-
-install_lib.build = _build
-
-# </monkey-patching>
-
 __libarchive = Extension(name='libarchive.__libarchive',
-                        sources=['libarchive/_libarchive.i'],
+                        sources=['libarchive/_libarchive_wrap.c'],
                         libraries=['archive'],
+                        extra_link_args=['-l:libarchive.so.12.0.3'],
+                        include_dirs=['libarchive'],
                         )
 
 
 setup(name = 'python-libarchive',
       version = '3.0.1-1',
-      description = 'A LibArchive wrapper for Python.',
+      description = 'A libarchive wrapper for Python.',
       long_description = '''\
-A complete wrapper for the LibArchive library generated using SWIG.
+A complete wrapper for the libarchive library generated using SWIG.
 Also included in the package are compatibility layers for the Python
 zipfile and tarfile modules.''',
       license = 'BSD-style license',
@@ -113,6 +90,8 @@ zipfile and tarfile modules.''',
           'Topic :: System :: Archiving :: Compression',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
-      cmdclass = {'build_ext': build_ext_extra},
+      cmdclass = {
+        'build_ext': build_ext_extra,
+      },
       ext_modules = [__libarchive],
       )
