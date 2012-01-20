@@ -75,15 +75,6 @@ a.close()
 
 There is overhead involved in using the SeekableArchive, so it is suggested that you use the Archive in cases that you don't need random access to an archives entries. In fact, the above example was probably better off using the Archive class.
 
-Finally, there is a TreeArchive class. This is a subclass of the SeekableArchive which provides a file system style interface. It will build a tree of the archive contents and allow you to navigate them. It fills in missing entries such as directories. For example, if the path /usr/src/python-libarchive/README is stored in an archive, the TreeArchive will build a tree as follows:
-
- * usr
-  * src
-   * python-libarchive
-    * README
-
-Using the archive structure above, here is an example of using the TreeArchive.
-
 {{{
 import libarchive
 
