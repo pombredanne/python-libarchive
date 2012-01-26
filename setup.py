@@ -35,7 +35,7 @@ except ImportError:
 
 name = 'python-libarchive'
 version = '3.0.3'
-release = '1'
+release = '2'
 versrel = version + '-' + release
 download_url = "http://" + name + ".googlecode.com/files/" + name + "-" + \
                                                           versrel + ".tar.gz"
@@ -72,7 +72,7 @@ class build_ext_extra(build_ext, object):
 __libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive_wrap.c'],
                         libraries=['archive'],
-                        extra_link_args=['-l:libarchive.so.12.0.3'],
+                        extra_link_args=['-larchive -l:libarchive.so.12.0.3'],
                         include_dirs=['libarchive'],
                         )
 
