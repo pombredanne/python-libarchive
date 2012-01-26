@@ -35,7 +35,7 @@ except ImportError:
 
 name = 'python-libarchive'
 version = '3.0.3'
-release = '2'
+release = '1'
 versrel = version + '-' + release
 download_url = "http://" + name + ".googlecode.com/files/" + name + "-" + \
                                                           versrel + ".tar.gz"
@@ -87,7 +87,7 @@ zipfile and tarfile modules.''',
       license = 'BSD-style license',
       platforms = ['any'],
       author = 'Ben Timby',
-      author_email = 'btimby at gmail dot com',
+      author_email = 'btimby@gmail.com',
       url = 'http://code.google.com/p/python-libarchive/',
       download_url = download_url,
       packages = ['libarchive'],
