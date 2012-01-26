@@ -1,6 +1,6 @@
 CFLAGS     = -g
 INCLUDE    = -I/usr/include -I.
-LIBS       = -L/usr/local/lib -l:libarchive.so.12.0.3 -larchive
+LIBS       = -L/usr/local/lib -l:libarchive.so.12.0.3
 
 #if PYTHON_VERSION
 PYVER = $(PYTHON_VERSION)
