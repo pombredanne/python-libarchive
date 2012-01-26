@@ -110,6 +110,13 @@ def get_func(name, items, index):
     return item[index]
 
 
+def guess_format(filename):
+    name, ext = os.path.splitext(filename)[1]
+    for format, extensions in FORMAT_EXTENSIONS.items():
+        if ext in extensions:
+            return format
+
+
 def is_archive_name(filename, formats=None):
     '''Quick check to see if the given file has an extension indiciating that it is
     an archive. The format parameter can be used to limit what archive format is acceptable.
@@ -345,23 +352,28 @@ class Archive(object):
             raise Exception('Provided file is not path or open file.')
         self.f = f
         self.mode = mode
+        self.format = format
+        self.filter = filter
         self.entry_class = entry_class
         if self.mode == 'r':
-            self.format = get_func(format, FORMATS, 0)
-            if self.format is None:
+            self.format_func = get_func(self.format, FORMATS, 0)
+            if self.format_func is None:
                 raise Exception('Unsupported format %s' % format)
-            self.filter = get_func(filter, FILTERS, 0)
-            if self.filter is None:
+            self.filter_func = get_func(self.filter, FILTERS, 0)
+            if self.filter_func is None:
                 raise Exception('Unsupported filter %s' % filter)
         else:
             # TODO: how to support appending?
-            if format is None:
-                raise Exception('You must specify a format for writing.')
-            self.format = get_func(format, FORMATS, 1)
+            if self.format is None and self.filename:
+                # Try to guess format by file extension:
+                self.format = guess_format(self.filename)
             if self.format is None:
+                raise Exception('You must specify a format for writing.')
+            self.format_func = get_func(self.format, FORMATS, 1)
+            if self.format_func is None:
                 raise Exception('Unsupported format %s' % format)
-            self.filter = get_func(filter, FILTERS, 1)
-            if self.filter is None:
+            self.filter_func = get_func(self.filter, FILTERS, 1)
+            if self.filter_func is None:
                 raise Exception('Unsupported filter %s' % filter)
         self.init()
 
@@ -386,8 +398,8 @@ class Archive(object):
             self._a = _libarchive.archive_read_new()
         else:
             self._a = _libarchive.archive_write_new()
-        self.format(self._a)
-        self.filter(self._a)
+        self.format_func(self._a)
+        self.filter_func(self._a)
         if self.mode == 'r':
             exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), self.blocksize)
         else:
