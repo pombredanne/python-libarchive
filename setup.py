@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from os import environ
+
 try:
     from setuptools import setup, Extension
     from setuptools.command.build_ext import build_ext
@@ -35,7 +37,7 @@ except ImportError:
 
 name = 'python-libarchive'
 version = '3.0.3'
-release = '3'
+release = '4'
 versrel = version + '-' + release
 download_url = "http://" + name + ".googlecode.com/files/" + name + "-" + \
                                                           versrel + ".tar.gz"
@@ -69,10 +71,21 @@ class build_ext_extra(build_ext, object):
         super(build_ext_extra, self).build_extension(ext)
 
 
+# Use a provided libarchive else default to hard-coded path.
+libarchivePrefix = environ.get('LIBARCHIVE_PREFIX')
+if libarchivePrefix:
+    extra_compile_args = ['-I{0}/include'.format(libarchivePrefix)]
+    extra_link_args = ['-L{0}/lib'.format(libarchivePrefix),
+        '-Wl,-rpath={0}/lib'.format(libarchivePrefix)]
+else:
+    extra_compile_args = []
+    extra_link_args = ['-l:libarchive.so.12.0.3']
+
 __libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive_wrap.c'],
                         libraries=['archive'],
-                        extra_link_args=['-larchive -l:libarchive.so.12.0.3'],
+                        extra_compile_args=extra_compile_args,
+                        extra_link_args=extra_link_args,
                         include_dirs=['libarchive'],
                         )
 
@@ -87,7 +100,7 @@ zipfile and tarfile modules.''',
       license = 'BSD-style license',
       platforms = ['any'],
       author = 'Ben Timby',
-      author_email = 'btimby@gmail.com',
+      author_email = 'btimby at gmail dot com',
       url = 'http://code.google.com/p/python-libarchive/',
       download_url = download_url,
       packages = ['libarchive'],
