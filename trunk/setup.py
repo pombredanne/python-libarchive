@@ -75,8 +75,9 @@ class build_ext_extra(build_ext, object):
 libarchivePrefix = environ.get('LIBARCHIVE_PREFIX')
 if libarchivePrefix:
     extra_compile_args = ['-I{0}/include'.format(libarchivePrefix)]
-    extra_link_args = ['-L{0}/lib'.format(libarchivePrefix),
-        '-Wl,-rpath={0}/lib'.format(libarchivePrefix)]
+    extra_link_args = ['-Wl,-rpath={0}/lib'.format(libarchivePrefix)]
+    environ['LDFLAGS'] = ('-L{0}/lib'.format(libarchivePrefix) +
+                          environ.get('LDFLAGS', ''))
 else:
     extra_compile_args = []
     extra_link_args = ['-l:libarchive.so.12.0.3']
