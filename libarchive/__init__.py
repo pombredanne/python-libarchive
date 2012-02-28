@@ -100,7 +100,7 @@ def exec_and_check(func, archive, *args):
     elif ret == _libarchive.ARCHIVE_EOF:
         raise EOF()
     else:
-        raise Exception('Error executing function: %s.' % get_error(archive))
+        raise Exception('Fatal error executing function, message is: %s.' % get_error(archive))
 
 
 def get_func(name, items, index):
