@@ -190,6 +190,13 @@ class EntryReadStream(object):
     def __exit__(self, type, value, traceback):
         return
 
+    def __iter__(self):
+        while True:
+            data = self.read(BLOCK_SIZE)
+            if not data:
+                break
+            yield data
+
     def read(self, bytes=None):
         if self.bytes == self.size:
             # EOF already reached.
