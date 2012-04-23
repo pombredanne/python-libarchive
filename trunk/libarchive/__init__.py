@@ -90,7 +90,7 @@ def get_error(archive):
     '''Retrieves the last error description for the given archive instance.'''
     return _libarchive.archive_error_string(archive)
 
-def exec_and_check(func, archive, *args):
+def call_and_check(func, archive, *args):
     '''Executes a libarchive function and raises an exception when appropriate.'''
     ret = func(*args)
     if ret == _libarchive.ARCHIVE_OK:
@@ -168,7 +168,7 @@ def is_archive(f, formats=(None, ), filters=(None, )):
         filter(a)
     try:
         try:
-            exec_and_check(_libarchive.archive_read_open_fd, a, a, f.fileno(), BLOCK_SIZE)
+            call_and_check(_libarchive.archive_read_open_fd, a, a, f.fileno(), BLOCK_SIZE)
             return True
         except:
             return False
@@ -278,7 +278,7 @@ class Entry(object):
         '''Instantiates an Entry class and sets all the properties from an archive header.'''
         e = _libarchive.archive_entry_new()
         try:
-            exec_and_check(_libarchive.archive_read_next_header2, archive._a, archive._a, e)
+            call_and_check(_libarchive.archive_read_next_header2, archive._a, archive._a, e)
             mode = _libarchive.archive_entry_filetype(e)
             mode |= _libarchive.archive_entry_perm(e)
             entry = cls(
@@ -319,7 +319,7 @@ class Entry(object):
             _libarchive.archive_entry_set_perm(e, stat.S_IMODE(self.mode))
             _libarchive.archive_entry_set_size(e, self.size)
             _libarchive.archive_entry_set_mtime(e, self.mtime, 0)
-            exec_and_check(_libarchive.archive_write_header, archive._a, archive._a, e)
+            call_and_check(_libarchive.archive_write_header, archive._a, archive._a, e)
             #self.hpos = archive.header_position
         finally:
             _libarchive.archive_entry_free(e)
@@ -408,9 +408,9 @@ class Archive(object):
         self.format_func(self._a)
         self.filter_func(self._a)
         if self.mode == 'r':
-            exec_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), self.blocksize)
+            call_and_check(_libarchive.archive_read_open_fd, self._a, self._a, self.f.fileno(), self.blocksize)
         else:
-            exec_and_check(_libarchive.archive_write_open_fd, self._a, self._a, self.f.fileno())
+            call_and_check(_libarchive.archive_write_open_fd, self._a, self._a, self.f.fileno())
 
     def denit(self):
         '''Closes and deallocates the archive reader/writer.'''
