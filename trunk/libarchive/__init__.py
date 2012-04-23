@@ -423,6 +423,9 @@ class Archive(object):
             _libarchive.archive_write_close(self._a)
             _libarchive.archive_write_free(self._a)
         self._a = None
+        if self.f and not self.f.closed:
+            self.f.close()
+            self.f = None
 
     def close(self):
         self.denit()
