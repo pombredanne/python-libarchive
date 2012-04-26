@@ -398,7 +398,7 @@ class Archive(object):
         self.denit()
 
     def __del__(self):
-        self.denit()
+        self.close()
 
     def init(self):
         if self.mode == 'r':
@@ -423,12 +423,11 @@ class Archive(object):
             _libarchive.archive_write_close(self._a)
             _libarchive.archive_write_free(self._a)
         self._a = None
-        if self.f and not self.f.closed:
-            self.f.close()
-            self.f = None
 
     def close(self):
         self.denit()
+        if self.f and not self.f.closed:
+            self.f.close()
 
     @property
     def header_position(self):
