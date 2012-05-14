@@ -426,8 +426,9 @@ class Archive(object):
 
     def close(self):
         self.denit()
-        if self.f and not self.f.closed:
+        if hasattr(self, 'f') and not self.f.closed:
             self.f.close()
+            delattr(self, 'f')
 
     @property
     def header_position(self):
