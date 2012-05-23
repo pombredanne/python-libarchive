@@ -354,11 +354,11 @@ class Archive(object):
             self.filename = f
             f = file(f, mode)
             # Only close it if we opened it...
-            self.__close = True
+            self._close = True
         elif hasattr(f, 'fileno'):
             self.filename = getattr(f, 'name', None)
             # Leave the fd alone, caller should manage it...
-            self.__close = False
+            self._close = False
         else:
             raise Exception('Provided file is not path or open file.')
         self.f = f
@@ -430,9 +430,9 @@ class Archive(object):
 
     def close(self):
         self.denit()
-        if self.__close and hasattr(self, 'f'):
+        if self._close and hasattr(self, 'f'):
             # Only close once:
-            self.__close = False
+            self._close = False
             self.f.close()
         self.f.flush()
 
