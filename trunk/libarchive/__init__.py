@@ -430,11 +430,12 @@ class Archive(object):
 
     def close(self):
         self.denit()
-        if self._close and hasattr(self, 'f'):
+        if getattr(self, '_close', None) and hasattr(self, 'f'):
             # Only close once:
             self._close = False
             self.f.close()
-        self.f.flush()
+        if hasattr(self, 'f'):
+            self.f.flush()
 
     @property
     def header_position(self):
