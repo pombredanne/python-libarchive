@@ -111,7 +111,7 @@ def get_func(name, items, index):
 
 
 def guess_format(filename):
-    name, ext = os.path.splitext(filename)[1]
+    ext = os.path.splitext(filename)[1]
     for format, extensions in FORMAT_EXTENSIONS.items():
         if ext in extensions:
             return format
@@ -420,22 +420,29 @@ class Archive(object):
         '''Closes and deallocates the archive reader/writer.'''
         if getattr(self, '_a', None) is None:
             return
-        if self.mode == 'r':
-            _libarchive.archive_read_close(self._a)
-            _libarchive.archive_read_free(self._a)
-        elif self.mode == 'w':
-            _libarchive.archive_write_close(self._a)
-            _libarchive.archive_write_free(self._a)
-        self._a = None
+        try:
+            if self.mode == 'r':
+                _libarchive.archive_read_close(self._a)
+                _libarchive.archive_read_free(self._a)
+            elif self.mode == 'w':
+                _libarchive.archive_write_close(self._a)
+                _libarchive.archive_write_free(self._a)
+        finally:
+            # We only want one try at this...
+            self._a = None
 
     def close(self):
         self.denit()
-        if getattr(self, '_close', None) and hasattr(self, 'f'):
-            # Only close once:
-            self._close = False
-            self.f.close()
+        # If there is a file attached...
         if hasattr(self, 'f'):
+            # Make sure it is not already closed...
+            if getattr(self.f, 'closed', False):
+                return
+            # Flush it...
             self.f.flush()
+            # and then close it, if we opened it...
+            if getattr(self, '_close', None):
+                self.f.close()
 
     @property
     def header_position(self):
