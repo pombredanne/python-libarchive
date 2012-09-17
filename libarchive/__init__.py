@@ -187,7 +187,7 @@ class EntryReadStream(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *args):
         return
 
     def __iter__(self):
@@ -196,6 +196,12 @@ class EntryReadStream(object):
             if not data:
                 break
             yield data
+
+    def __len__(self):
+        return self.size
+
+    def tell(self):
+        return self.bytes
 
     def read(self, bytes=None):
         if self.bytes == self.size:
@@ -212,7 +218,8 @@ class EntryReadStream(object):
         return data
 
     def close(self):
-        pass # No-op
+        pass # No-op, for file-like compatibility only.
+
 
 class EntryWriteStream(object):
     '''A file-like object for writing an entry to an archive.
@@ -229,16 +236,23 @@ class EntryWriteStream(object):
             self.buffer = None
             self.entry.size = size
             self.entry.to_archive(self.archive)
+        self.bytes = 0
         self.closed = False
 
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *args):
         self.close()
 
     def __del__(self):
         self.close()
+
+    def __len__(self):
+        return self.bytes
+
+    def tell(self):
+        return self.bytes
 
     def write(self, data):
         if self.closed:
@@ -247,6 +261,7 @@ class EntryWriteStream(object):
             self.buffer.write(data)
         else:
             _libarchive.archive_write_data_from_str(self.archive._a, data)
+        self.bytes += len(data)
 
     def close(self):
         if self.closed:
