@@ -61,24 +61,25 @@ FILTERS = {
     'bz2':      (_libarchive.archive_read_support_filter_bzip2, _libarchive.archive_write_add_filter_bzip2),
 }
 
-# Map file extensions to formats and filters. For supporting quick detection.
+# Map file extensions to formats and filters. To support quick detection.
 FORMAT_EXTENSIONS = {
-    'tar':      ('.tar', ),
-    'zip':      ('.zip', ),
-    'rar':      ('.rar', ),
-    '7zip':     ('.7z', ),
-    'ar':       ('.ar', ),
-    'cab':      ('.cab', ),
-    'cpio':     ('.rpm', '.cpio'),
-    'iso':      ('.iso', ),
-    'lha':      ('.lha', ),
-    'xar':      ('.xar', ),
+    '.tar': 'tar',
+    '.zip': 'zip',
+    '.rar': 'rar',
+    '.7z': '7zip',
+    '.ar': 'ar',
+    '.cab': 'cab',
+    '.rpm': 'cpio',
+    '.cpio': 'cpio',
+    '.iso': 'iso',
+    '.lha': 'lha',
+    '.xar': 'xar',
+}
+FILTER_EXTENSIONS = {
+    '.gz': 'gz',
+    '.bz2': 'bz2',
 }
 
-FILTER_EXTENSIONS = {
-    'gz':       ('.gz', ),
-    'bz2':      ('.bz2', ),
-}
 
 class EOF(Exception):
     '''Raised by ArchiveInfo.from_archive() when unable to read the next
@@ -111,10 +112,12 @@ def get_func(name, items, index):
 
 
 def guess_format(filename):
-    ext = os.path.splitext(filename)[1]
-    for format, extensions in FORMAT_EXTENSIONS.items():
-        if ext in extensions:
-            return format
+    filename, ext = os.path.splitext(filename)
+    filter = FILTER_EXTENSIONS.get(ext)
+    if filter:
+        filename, ext = os.path.splitext(filename)
+    format = FORMAT_EXTENSIONS.get(ext)
+    return format, filter
 
 
 def is_archive_name(filename, formats=None):
@@ -124,20 +127,11 @@ def is_archive_name(filename, formats=None):
 
     This function will return the name of the most likely archive format, None if the file is
     unlikely to be an archive.'''
-    filename, fileext = os.path.splitext(filename)
-    exts = []
-    map(exts.extend, FILTER_EXTENSIONS.values())
-    if fileext in exts:
-        filename, fileext = os.path.splitext(filename)
-    if formats:
-        for format in formats:
-            exts = FORMAT_EXTENSIONS.get(format, [])
-            if fileext not in exts:
-                return format
-    else:
-        for format, exts in FORMAT_EXTENSIONS.items():
-            if fileext in exts:
-                return format
+    if formats is None:
+        formats = FORMAT_EXTENSIONS.values()
+    format, filter = guess_format(filename)
+    if format in formats:
+        return format
 
 
 def is_archive(f, formats=(None, ), filters=(None, )):
@@ -151,8 +145,8 @@ def is_archive(f, formats=(None, ), filters=(None, )):
     numbers of file names using is_archive_name() before double-checking the positives with
     this function.
 
-    This function will return the name of the most likely archive format, None if the file is
-    unlikely to be an archive.'''
+    This function will return True if the file can be opened as an archive using the given
+    format(s)/filter(s).'''
     if isinstance(f, basestring):
         f = file(f, 'r')
     a = _libarchive.archive_read_new()
@@ -378,9 +372,17 @@ class Archive(object):
             raise Exception('Provided file is not path or open file.')
         self.f = f
         self.mode = mode
+        # Guess the format/filter from file name (if not provided)
+        if self.filename:
+            if format is None:
+                format = guess_format(self.filename)[0]
+            if filter is None:
+                filter = guess_format(self.filename)[1]
         self.format = format
         self.filter = filter
+        # The class to use for entries.
         self.entry_class = entry_class
+        # Select filter/format functions.
         if self.mode == 'r':
             self.format_func = get_func(self.format, FORMATS, 0)
             if self.format_func is None:
@@ -390,9 +392,6 @@ class Archive(object):
                 raise Exception('Unsupported filter %s' % filter)
         else:
             # TODO: how to support appending?
-            if self.format is None and self.filename:
-                # Try to guess format by file extension:
-                self.format = guess_format(self.filename)
             if self.format is None:
                 raise Exception('You must specify a format for writing.')
             self.format_func = get_func(self.format, FORMATS, 1)
@@ -401,6 +400,7 @@ class Archive(object):
             self.filter_func = get_func(self.filter, FILTERS, 1)
             if self.filter_func is None:
                 raise Exception('Unsupported filter %s' % filter)
+        # Open the archive, apply filter/format functions.
         self.init()
 
     def __iter__(self):
