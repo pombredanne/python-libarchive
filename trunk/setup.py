@@ -36,8 +36,8 @@ except ImportError:
 
 
 name = 'python-libarchive'
-version = '3.0.3'
-release = '14'
+version = '3.0.4'
+release = '2'
 versrel = version + '-' + release
 readme = 'README.rst'
 download_url = "http://" + name + ".googlecode.com/files/" + name + "-" + \
@@ -81,7 +81,7 @@ if libarchivePrefix:
                                                 environ.get('LDFLAGS', ''))
 else:
     extra_compile_args = []
-    extra_link_args = ['-l:libarchive.so.12.0.3']
+    extra_link_args = ['-l:libarchive.so.12.0.4']
 
 __libarchive = Extension(name='libarchive.__libarchive',
                         sources=['libarchive/_libarchive_wrap.c'],
