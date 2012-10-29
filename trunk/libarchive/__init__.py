@@ -486,8 +486,7 @@ class Archive(object):
             if not os.path.exists(basedir):
                 os.makedirs(basedir)
             f = file(f, 'w')
-        fd = fd.fileno()
-        ret = _libarchive.archive_read_data_into_fd(self._a, fd)
+        return _libarchive.archive_read_data_into_fd(self._a, f.fileno())
 
     def readstream(self, size):
         '''Returns a file-like object for reading current archive entry contents.'''
