@@ -23,7 +23,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os, sys, math, warnings, stat, time
+import os
+import stat
+import sys
+import time
+import warnings
+
 from libarchive import _libarchive
 try:
     from cStringIO import StringIO
@@ -40,25 +45,25 @@ ENCODING = 'utf-8'
 
 # Functions to initialize read/write for various libarchive supported formats and filters.
 FORMATS = {
-    None:       (_libarchive.archive_read_support_format_all, None),
-    'tar':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_ustar),
-    'pax':      (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_pax),
-    'gnu':      (_libarchive.archive_read_support_format_gnutar, _libarchive.archive_write_set_format_gnutar),
-    'zip':      (_libarchive.archive_read_support_format_zip, _libarchive.archive_write_set_format_zip),
-    'rar':      (_libarchive.archive_read_support_format_rar, None),
-    '7zip':     (_libarchive.archive_read_support_format_7zip, None),
-    'ar':       (_libarchive.archive_read_support_format_ar, None),
-    'cab':      (_libarchive.archive_read_support_format_cab, None),
-    'cpio':     (_libarchive.archive_read_support_format_cpio, _libarchive.archive_write_set_format_cpio_newc),
-    'iso':      (_libarchive.archive_read_support_format_iso9660, _libarchive.archive_write_set_format_iso9660),
-    'lha':      (_libarchive.archive_read_support_format_lha, None),
-    'xar':      (_libarchive.archive_read_support_format_xar, _libarchive.archive_write_set_format_xar),
+    None: (_libarchive.archive_read_support_format_all, None),
+    'tar': (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_ustar),
+    'pax': (_libarchive.archive_read_support_format_tar, _libarchive.archive_write_set_format_pax),
+    'gnu': (_libarchive.archive_read_support_format_gnutar, _libarchive.archive_write_set_format_gnutar),
+    'zip': (_libarchive.archive_read_support_format_zip, _libarchive.archive_write_set_format_zip),
+    'rar': (_libarchive.archive_read_support_format_rar, None),
+    '7zip': (_libarchive.archive_read_support_format_7zip, None),
+    'ar': (_libarchive.archive_read_support_format_ar, None),
+    'cab': (_libarchive.archive_read_support_format_cab, None),
+    'cpio': (_libarchive.archive_read_support_format_cpio, _libarchive.archive_write_set_format_cpio_newc),
+    'iso': (_libarchive.archive_read_support_format_iso9660, _libarchive.archive_write_set_format_iso9660),
+    'lha': (_libarchive.archive_read_support_format_lha, None),
+    'xar': (_libarchive.archive_read_support_format_xar, _libarchive.archive_write_set_format_xar),
 }
 
 FILTERS = {
-    None:       (_libarchive.archive_read_support_filter_all, _libarchive.archive_write_add_filter_none),
-    'gz':       (_libarchive.archive_read_support_filter_gzip, _libarchive.archive_write_add_filter_gzip),
-    'bz2':      (_libarchive.archive_read_support_filter_bzip2, _libarchive.archive_write_add_filter_bzip2),
+    None: (_libarchive.archive_read_support_filter_all, _libarchive.archive_write_add_filter_none),
+    'gz': (_libarchive.archive_read_support_filter_gzip, _libarchive.archive_write_add_filter_gzip),
+    'bz2': (_libarchive.archive_read_support_filter_bzip2, _libarchive.archive_write_add_filter_bzip2),
 }
 
 # Map file extensions to formats and filters. To support quick detection.
@@ -90,6 +95,7 @@ class EOF(Exception):
 def get_error(archive):
     '''Retrieves the last error description for the given archive instance.'''
     return _libarchive.archive_error_string(archive)
+
 
 def call_and_check(func, archive, *args):
     '''Executes a libarchive function and raises an exception when appropriate.'''
@@ -212,7 +218,7 @@ class EntryReadStream(object):
         return data
 
     def close(self):
-        pass # No-op, for file-like compatibility only.
+        pass  # No-op, for file-like compatibility only.
 
 
 class EntryWriteStream(object):
@@ -291,11 +297,11 @@ class Entry(object):
             mode = _libarchive.archive_entry_filetype(e)
             mode |= _libarchive.archive_entry_perm(e)
             entry = cls(
-                pathname = _libarchive.archive_entry_pathname(e).decode(encoding),
-                size = _libarchive.archive_entry_size(e),
-                mtime = _libarchive.archive_entry_mtime(e),
-                mode = mode,
-                hpos = archive.header_position,
+                pathname=_libarchive.archive_entry_pathname(e).decode(encoding),
+                size=_libarchive.archive_entry_size(e),
+                mtime=_libarchive.archive_entry_mtime(e),
+                mode=mode,
+                hpos=archive.header_position,
             )
         finally:
             _libarchive.archive_entry_free(e)
@@ -477,7 +483,7 @@ class Archive(object):
         a path.'''
         if isinstance(f, basestring):
             basedir = os.path.basename(f)
-            if not os.path.exists(basedir) :
+            if not os.path.exists(basedir):
                 os.makedirs(basedir)
             f = file(f, 'w')
         fd = fd.fileno()
@@ -527,7 +533,7 @@ class Archive(object):
         s.flush()
 
 
-class SeekableArchive(Archive): 
+class SeekableArchive(Archive):
     '''A class that provides random-access to archive entries. It does this by using one
     or many Archive instances to seek to the correct location. The best performance will
     occur when reading archive entries in the order in which they appear in the archive.
@@ -556,7 +562,7 @@ class SeekableArchive(Archive):
     def reopen(self):
         '''Seeks the underlying fd to 0 position, then opens the archive. If the archive
         is already open, this will effectively re-open it (rewind to the beginning).'''
-        self.denit();
+        self.denit()
         self.f.seek(0)
         self.init()
 
@@ -595,4 +601,3 @@ class SeekableArchive(Archive):
         entry = self.getentry(member)
         self.seek(entry)
         return EntryReadStream(self, entry.size)
-
