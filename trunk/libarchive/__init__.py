@@ -282,6 +282,11 @@ class EntryWriteStream(object):
             self.entry.to_archive(self.archive)
             _libarchive.archive_write_data_from_str(self.archive._a, self.buffer.getvalue())
         _libarchive.archive_write_finish_entry(self.archive._a)
+
+        # Call archive.close() with _defer True to let it know we have been
+        # closed and it is now safe to actually close.
+        self.archive.close(_defer=True)
+        self.archive = None
         self.closed = True
 
 
