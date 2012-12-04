@@ -315,14 +315,22 @@ class Entry(object):
             entry = cls(encoding=encoding)
         if entry.pathname is None:
             if isinstance(f, basestring):
-                entry.pathname = f
                 st = os.stat(f)
+                entry.pathname = f
+                entry.size = st.st_size
+                entry.mtime = st.st_mtime
+                entry.mode = st.st_mode
+            elif isinstance(f, EntryReadStream):
+                entry.pathname = f.pathname
+                entry.size = f.size
+                entry.mtime = f.mtime
+                entry.mode = f.mode
             else:
-                entry.pathname = getattr(f, 'name', None)
                 st = os.fstat(f.fileno())
-        entry.size = st.st_size
-        entry.mtime = st.st_mtime
-        entry.mode = st.st_mode
+                entry.pathname = getattr(f, 'name', None)
+                entry.size = st.st_size
+                entry.mtime = st.st_mtime
+                entry.mode = st.st_mode
         return entry
 
     def to_archive(self, archive):
