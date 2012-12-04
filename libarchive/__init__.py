@@ -225,9 +225,9 @@ class EntryReadStream(object):
     def close(self):
         if self.closed:
             return
-        # Call archive.close() with defer True to let it know we have been
+        # Call archive.close() with _defer True to let it know we have been
         # closed and it is now safe to actually close.
-        self.archive.close(defer=True)
+        self.archive.close(_defer=True)
         self.archive = None
         self.closed = True
 
@@ -388,11 +388,11 @@ class Archive(object):
             self.filename = f
             f = file(f, mode)
             # Only close it if we opened it...
-            self._close = True
+            self._defer_close = True
         elif hasattr(f, 'fileno'):
             self.filename = getattr(f, 'name', None)
             # Leave the fd alone, caller should manage it...
-            self._close = False
+            self._defer_close = False
         else:
             raise Exception('Provided file is not path or open file.')
         self.f = f
@@ -472,16 +472,18 @@ class Archive(object):
             # We only want one try at this...
             self._a = None
 
-    def close(self, defer=False):
-        if defer:
+    def close(self, _defer=False):
+        # _defer == True is how a stream can notify Archive that the stream is
+        # now closed.  Calling it directly in not recommended.
+        if _defer:
             # This call came from our open stream.
             self._stream = None
-            if not self._close:
+            if not self._defer_close:
                 # We are not yet ready to close.
                 return
         if self._stream:
             # We have a stream open! don't close, but remember we were asked to.
-            self._close = True
+            self._defer_close = True
             return
         self.denit()
         # If there is a file attached...
