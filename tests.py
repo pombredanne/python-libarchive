@@ -105,6 +105,45 @@ class TestZipRead(unittest.TestCase):
             count += 1
         self.assertEqual(count, len(FILENAMES), 'Did not enumerate correct number of items in archive.')
 
+    def test_deferred_close_by_archive(self):
+        """ Test archive deferred close without a stream. """
+        f = file(ZIPPATH, mode='r')
+        z = ZipFile(f, 'r')
+        self.assertIsNotNone(z._a)
+        self.assertIsNone(z._stream)
+        z.close()
+        self.assertIsNone(z._a)
+
+    def test_deferred_close_by_stream(self):
+        """ Ensure archive closes self if stream is closed first. """
+        f = file(ZIPPATH, mode='r')
+        z = ZipFile(f, 'r')
+        stream = z.readstream(FILENAMES[0])
+        stream.close()
+        # Make sure archive stays open after stream is closed.
+        self.assertIsNotNone(z._a)
+        self.assertIsNone(z._stream)
+        z.close()
+        self.assertIsNone(z._a)
+        self.assertTrue(stream.closed)
+
+    def test_close_stream_first(self):
+        """ Ensure that archive stays open after being closed if a stream is
+        open. Further, ensure closing the stream closes the archive. """
+        f = file(ZIPPATH, mode='r')
+        z = ZipFile(f, 'r')
+        stream = z.readstream(FILENAMES[0])
+        z.close()
+        try:
+            stream.read()
+        except:
+            self.fail("Reading stream from closed archive failed!")
+        stream.close()
+        # Now the archive should close.
+        self.assertIsNone(z._a)
+        self.assertTrue(stream.closed)
+        self.assertIsNone(z._stream)
+
     def test_filenames(self):
         f = file(ZIPPATH, mode='r')
         z = ZipFile(f, 'r')
