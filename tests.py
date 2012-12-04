@@ -202,5 +202,19 @@ class TestZipWrite(unittest.TestCase):
             i.close()
         z.close()
 
+    def test_deferred_close_by_archive(self):
+        """ Test archive deferred close without a stream. """
+        f = file(ZIPPATH, mode='w')
+        z = ZipFile(f, 'w')
+        o = z.writestream(FILENAMES[0])
+        z.close()
+        self.assertIsNotNone(z._a)
+        self.assertIsNotNone(z._stream)
+        o.write('testdata')
+        o.close()
+        self.assertIsNone(z._a)
+        self.assertIsNone(z._stream)
+        z.close()
+
 if __name__ == '__main__':
     unittest.main()
