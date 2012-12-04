@@ -481,7 +481,7 @@ class Archive(object):
             if not self._defer_close:
                 # We are not yet ready to close.
                 return
-        if self._stream:
+        if self._stream is not None:
             # We have a stream open! don't close, but remember we were asked to.
             self._defer_close = True
             return
