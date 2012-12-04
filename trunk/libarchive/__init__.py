@@ -203,11 +203,11 @@ class EntryReadStream(object):
     def tell(self):
         return self.bytes
 
-    def read(self, bytes=None):
+    def read(self, bytes=-1):
         if self.bytes == self.size:
             # EOF already reached.
             return
-        if bytes is None:
+        if bytes < 0:
             bytes = self.size - self.bytes
         elif self.bytes + bytes > self.size:
             # Limit read to remaining bytes
@@ -320,17 +320,17 @@ class Entry(object):
                 entry.size = st.st_size
                 entry.mtime = st.st_mtime
                 entry.mode = st.st_mode
-            elif isinstance(f, EntryReadStream):
-                entry.pathname = f.pathname
-                entry.size = f.size
-                entry.mtime = f.mtime
-                entry.mode = f.mode
-            else:
+            elif hasattr(f, 'fileno'):
                 st = os.fstat(f.fileno())
                 entry.pathname = getattr(f, 'name', None)
                 entry.size = st.st_size
                 entry.mtime = st.st_mtime
                 entry.mode = st.st_mode
+            else:
+                entry.pathname = getattr(f, 'pathname', None)
+                entry.size = getattr(f, 'size', 0)
+                entry.mtime = getattr(f, 'mtime', time.time())
+                entry.mode = getattr(f, 'mode', stat.S_IFREG)
         return entry
 
     def to_archive(self, archive):
