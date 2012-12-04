@@ -181,6 +181,7 @@ class EntryReadStream(object):
     '''A file-like object for reading an entry from the archive.'''
     def __init__(self, archive, size):
         self.archive = archive
+        self.closed = False
         self.size = size
         self.bytes = 0
 
@@ -191,6 +192,8 @@ class EntryReadStream(object):
         return
 
     def __iter__(self):
+        if self.closed:
+            return
         while True:
             data = self.read(BLOCK_SIZE)
             if not data:
@@ -204,6 +207,8 @@ class EntryReadStream(object):
         return self.bytes
 
     def read(self, bytes=-1):
+        if self.closed:
+            return
         if self.bytes == self.size:
             # EOF already reached.
             return
@@ -218,7 +223,13 @@ class EntryReadStream(object):
         return data
 
     def close(self):
-        pass  # No-op, for file-like compatibility only.
+        if self.closed:
+            return
+        # Call archive.close() with defer True to let it know we have been
+        # closed and it is now safe to actually close.
+        self.archive.close(defer=True)
+        self.archive = None
+        self.closed = True
 
 
 class EntryWriteStream(object):
@@ -385,6 +396,7 @@ class Archive(object):
         else:
             raise Exception('Provided file is not path or open file.')
         self.f = f
+        self._stream = None
         self.mode = mode
         # Guess the format/filter from file name (if not provided)
         if self.filename:
@@ -460,7 +472,17 @@ class Archive(object):
             # We only want one try at this...
             self._a = None
 
-    def close(self):
+    def close(self, defer=False):
+        if defer:
+            # This call came from our open stream.
+            self._stream = None
+            if not self._close:
+                # We are not yet ready to close.
+                return
+        if self._stream:
+            # We have a stream open! don't close, but remember we were asked to.
+            self._close = True
+            return
         self.denit()
         # If there is a file attached...
         if hasattr(self, 'f'):
@@ -500,7 +522,8 @@ class Archive(object):
 
     def readstream(self, size):
         '''Returns a file-like object for reading current archive entry contents.'''
-        return EntryReadStream(self, size)
+        self._stream = EntryReadStream(self, size)
+        return self._stream
 
     def write(self, member, data=None):
         '''Writes a string buffer to the archive as the given entry.'''
@@ -530,7 +553,8 @@ class Archive(object):
 
     def writestream(self, pathname, size=None):
         '''Returns a file-like object for writing a new entry.'''
-        return EntryWriteStream(self, pathname, size)
+        self._stream = EntryWriteStream(self, pathname, size)
+        return self._stream
 
     def printlist(self, s=sys.stdout):
         for entry in self:
@@ -609,4 +633,5 @@ class SeekableArchive(Archive):
         '''Returns a file-like object for reading requested archive entry contents.'''
         entry = self.getentry(member)
         self.seek(entry)
-        return EntryReadStream(self, entry.size)
+        self._stream = EntryReadStream(self, entry.size)
+        return self._stream
