@@ -387,6 +387,7 @@ class Archive(object):
     this a light-weight pythonic libarchive wrapper.'''
     def __init__(self, f, mode='r', format=None, filter=None, entry_class=Entry, encoding=ENCODING, blocksize=BLOCK_SIZE):
         assert mode in ('r', 'w', 'wb', 'a'), 'Mode should be "r", "w", "wb", or "a".'
+        self._stream = None
         self.encoding = encoding
         self.blocksize = blocksize
         if isinstance(f, basestring):
@@ -401,7 +402,6 @@ class Archive(object):
         else:
             raise Exception('Provided file is not path or open file.')
         self.f = f
-        self._stream = None
         self.mode = mode
         # Guess the format/filter from file name (if not provided)
         if self.filename:
@@ -580,6 +580,7 @@ class SeekableArchive(Archive):
     Reading out of order will cause the archive to be closed and opened each time a
     reverse seek is needed.'''
     def __init__(self, f, **kwargs):
+        self._stream = None
         # Convert file to open file. We need this to reopen the archive.
         mode = kwargs.setdefault('mode', 'r')
         if isinstance(f, basestring):
