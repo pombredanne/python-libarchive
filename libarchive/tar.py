@@ -82,7 +82,7 @@ class TarFile(SeekableArchive):
         elif fileobj:
             f = fileobj
         try:
-            format = FORMAT_CONVERSON.get(format)
+            format = FORMAT_CONVERSION.get(format)
         except KeyError:
             raise Exception('Invalid tar format: %s' % format)
         super(TarFile, self).__init__(f, mode=mode, format=format, entry_class=tarinfo, encoding=encoding)
